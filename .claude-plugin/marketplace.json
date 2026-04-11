@@ -1,0 +1,17 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "mempenny",
+  "description": "Keep Claude Code auto-memory lean. Triage (delete / archive / distill) memory files without losing forward-looking truth.",
+  "owner": {
+    "name": "Marcelo Paniza",
+    "url": "https://github.com/marcelopaniza"
+  },
+  "plugins": [
+    {
+      "name": "mempenny",
+      "description": "Keep auto-memory lean: delete obsolete, archive historical, distill bloated. Pairs with caveman.",
+      "source": "./",
+      "category": "productivity"
+    }
+  ]
+}

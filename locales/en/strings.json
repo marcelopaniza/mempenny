@@ -1,0 +1,57 @@
+{
+  "_meta": {
+    "language": "English",
+    "code": "en",
+    "native_name": "English",
+    "direction": "ltr"
+  },
+  "distill_output_instruction": "Write all distilled replacements in English. Preserve technical terms (URLs, file paths, commands, version numbers, migration IDs) verbatim — do not translate them.",
+  "triage": {
+    "header": "Triage complete",
+    "table_path_label": "Full table",
+    "delete_label": "DELETE",
+    "archive_label": "ARCHIVE",
+    "distill_label": "DISTILL",
+    "keep_label": "KEEP",
+    "files_unit": "files",
+    "total_before_label": "Total before",
+    "total_after_label": "Total after",
+    "net_savings_label": "Net savings",
+    "review_instruction": "Review {table_path}, then run `/memory-apply` to execute it. The apply step creates a full backup before touching anything.",
+    "high_confidence_deletes_header": "High-confidence DELETE examples",
+    "distill_examples_header": "DISTILL examples"
+  },
+  "apply": {
+    "backup_label": "BACKUP",
+    "backup_verified_suffix": "verified",
+    "succeeded_label": "succeeded",
+    "memory_md_label": "MEMORY.md",
+    "memory_md_lines_suffix": "lines",
+    "bytes_header": "Bytes",
+    "main_before_label": "Main dir before",
+    "main_after_label": "Main dir after",
+    "main_after_suffix": "excluding archive/",
+    "archive_label": "Archive",
+    "net_savings_label": "Net savings",
+    "rollback_comment": "Rollback if something feels wrong",
+    "warnings_header": "Warnings"
+  },
+  "distill": {
+    "file_label": "File",
+    "size_label": "Size",
+    "reduction_suffix": "reduction",
+    "current_body_header": "Current body (first 10 lines)",
+    "proposed_body_header": "Proposed distilled body",
+    "action_prompt": "Apply, skip, or edit the proposal?",
+    "already_tight_message": "This file is already tight (≤3 sentences, already forward-looking). No distillation needed.",
+    "applied_message": "Distilled body written. Final size: {size} bytes.",
+    "skipped_message": "File left unchanged.",
+    "cannot_compress_message": "Cannot fit all load-bearing content into 3 sentences without loss. Refusing to lie with a bad distillation."
+  },
+  "errors": {
+    "memory_dir_not_found": "Could not locate the auto-memory directory. Please supply the absolute path.",
+    "table_not_found": "Triage table not found at {path}. Run `/memory-triage` first, or pass the table path as an argument.",
+    "backup_failed": "Backup creation failed. STOPPING. No files were modified.",
+    "locale_missing": "Locale '{lang}' not found. Falling back to English. Submit a translation PR at https://github.com/marcelopaniza/mempenny/tree/main/locales"
+  }
+}

@@ -1,0 +1,37 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+.claude/
+
+# Python (in case contributors add scripts later)
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Logs / scratch
+*.log
+/tmp/
+scratch/
+
+# Node (in case anything gets pulled in)
+node_modules/
+
+# Triage scratch output — these are per-machine, not source
+triage_table.md
+/memory.backup-*/

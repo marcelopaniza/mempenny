@@ -1,0 +1,57 @@
+{
+  "_meta": {
+    "language": "Portuguese (Brazil)",
+    "code": "pt-BR",
+    "native_name": "Português (Brasil)",
+    "direction": "ltr"
+  },
+  "distill_output_instruction": "Escreva todas as substituições destiladas em português brasileiro. Preserve termos técnicos (URLs, caminhos de arquivo, comandos, números de versão, IDs de migração) exatamente como estão — não traduza.",
+  "triage": {
+    "header": "Triagem concluída",
+    "table_path_label": "Tabela completa",
+    "delete_label": "APAGAR",
+    "archive_label": "ARQUIVAR",
+    "distill_label": "DESTILAR",
+    "keep_label": "MANTER",
+    "files_unit": "arquivos",
+    "total_before_label": "Total antes",
+    "total_after_label": "Total depois",
+    "net_savings_label": "Economia líquida",
+    "review_instruction": "Revise {table_path}, depois execute `/memory-apply` para aplicar. A etapa de aplicação cria um backup completo antes de qualquer alteração.",
+    "high_confidence_deletes_header": "Exemplos de APAGAR (alta confiança)",
+    "distill_examples_header": "Exemplos de DESTILAR"
+  },
+  "apply": {
+    "backup_label": "BACKUP",
+    "backup_verified_suffix": "verificado",
+    "succeeded_label": "bem-sucedidos",
+    "memory_md_label": "MEMORY.md",
+    "memory_md_lines_suffix": "linhas",
+    "bytes_header": "Bytes",
+    "main_before_label": "Diretório principal antes",
+    "main_after_label": "Diretório principal depois",
+    "main_after_suffix": "excluindo archive/",
+    "archive_label": "Arquivo",
+    "net_savings_label": "Economia líquida",
+    "rollback_comment": "Reverter se algo parecer errado",
+    "warnings_header": "Avisos"
+  },
+  "distill": {
+    "file_label": "Arquivo",
+    "size_label": "Tamanho",
+    "reduction_suffix": "de redução",
+    "current_body_header": "Corpo atual (primeiras 10 linhas)",
+    "proposed_body_header": "Corpo destilado proposto",
+    "action_prompt": "Aplicar, pular ou editar a proposta?",
+    "already_tight_message": "Este arquivo já está enxuto (≤3 frases, voltado ao futuro). Destilação não é necessária.",
+    "applied_message": "Corpo destilado escrito. Tamanho final: {size} bytes.",
+    "skipped_message": "Arquivo mantido sem alterações.",
+    "cannot_compress_message": "Não é possível caber todo o conteúdo essencial em 3 frases sem perda. Recuso-me a mentir com uma destilação ruim."
+  },
+  "errors": {
+    "memory_dir_not_found": "Não foi possível localizar o diretório de auto-memória. Forneça o caminho absoluto.",
+    "table_not_found": "Tabela de triagem não encontrada em {path}. Execute `/memory-triage` primeiro, ou passe o caminho como argumento.",
+    "backup_failed": "Falha ao criar backup. PARANDO. Nenhum arquivo foi modificado.",
+    "locale_missing": "Locale '{lang}' não encontrado. Voltando para inglês. Envie um PR de tradução em https://github.com/marcelopaniza/mempenny/tree/main/locales"
+  }
+}

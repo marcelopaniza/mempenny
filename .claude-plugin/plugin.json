@@ -1,0 +1,21 @@
+{
+  "name": "mempenny",
+  "description": "Keep Claude Code auto-memory lean. Triage (delete / archive / distill) memory files without losing forward-looking truth. Pairs with caveman for compression.",
+  "version": "0.2.1",
+  "author": {
+    "name": "Marcelo Paniza",
+    "url": "https://github.com/marcelopaniza"
+  },
+  "homepage": "https://github.com/marcelopaniza/mempenny",
+  "repository": "https://github.com/marcelopaniza/mempenny",
+  "license": "MIT",
+  "keywords": [
+    "memory",
+    "auto-memory",
+    "context",
+    "tokens",
+    "productivity",
+    "hygiene",
+    "triage"
+  ]
+}
