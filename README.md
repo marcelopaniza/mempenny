@@ -60,13 +60,28 @@ After install, the three commands are namespaced under `mempenny:` — always in
 - `/mempenny:memory-triage [--dir <path>] [--only <glob>] [--lang <code>]` — dry-run triage of a memory dir. Produces a markdown table at `/tmp/triage_table.md`. No writes. Defaults to the current project's memory dir; `--dir` points it anywhere.
 - `/mempenny:memory-apply [<table-file>] [--dir <path>] [--lang <code>]` — applies a previously approved triage table. Backs up first. Rolls back policy on failure. Use the same `--dir` you passed to `memory-triage`.
 - `/mempenny:memory-distill <file> [--lang <code>]` — one-off distillation of a single memory file. Interactive: shows the proposal, asks to apply / skip / edit.
+- `/mempenny:memory-compress [--dir <path>] [--only <glob>] [--lang <code>]` — invokes [caveman](https://github.com/JuliusBrussee/caveman)'s `compress` skill on each surviving memory file in the directory. Shrinks prose while preserving code, commands, URLs, paths, and version numbers. Requires caveman installed; falls back to install instructions if not.
 
 ## Quick start
+
+**Full three-step flow (triage → apply → compress):**
 
 ```
 /mempenny:memory-triage
 # Review the proposed table at /tmp/triage_table.md
+
 /mempenny:memory-apply /tmp/triage_table.md
+# Backup created, obsolete/archived files removed, bloated files distilled
+
+/mempenny:memory-compress
+# Caveman compresses prose in every surviving file (leaves code/URLs/paths alone)
+```
+
+**Minimum flow (triage only, no writes):**
+
+```
+/mempenny:memory-triage
+# Review table, decide if the savings are worth it, stop here if not
 ```
 
 Want to target a subset?
@@ -124,9 +139,27 @@ mv ~/.claude/projects/<project-id>/memory.backup-YYYYMMDD/ ~/.claude/projects/<p
 
 Delete the backup after ~2 weeks if nothing feels wrong.
 
+## After MemPenny: compress with caveman
+
+MemPenny removes what shouldn't be there. [Caveman](https://github.com/JuliusBrussee/caveman) compresses what's left — stripping prose padding while preserving code, commands, URLs, paths, frontmatter, and version numbers exactly. Running both in sequence is the full story.
+
+**If caveman is already installed**, just run `/mempenny:memory-compress` after an apply. MemPenny invokes `caveman:compress` on each surviving file individually, tracks total bytes saved, and reports back. Each file gets its own per-file backup at `<filename>.original.md` (created by caveman, not MemPenny) so rollback is one `mv` per file.
+
+**If caveman isn't installed**, MemPenny detects that, prints the install commands, and stops without modifying anything:
+
+```
+/plugin marketplace add JuliusBrussee/caveman
+/plugin install caveman@caveman
+/reload-plugins
+```
+
+Then re-run `/mempenny:memory-compress`. The graceful-fallback design means MemPenny works fully without caveman — the composability is opt-in, not a hard dependency.
+
+**Typical stacking result on a long-running project:** MemPenny alone cuts auto-load by ~30–55% (deletes + archives + distillations). Running caveman on the KEEP survivors adds another ~30–40% on top through prose compression. Together: often 60–75% off the auto-load path with zero technical loss.
+
 ## See also
 
-- [caveman](https://github.com/JuliusBrussee/caveman) — compress the prose in memories that survive MemPenny triage. The two tools are designed to stack.
+- [caveman](https://github.com/JuliusBrussee/caveman) — the prose compressor MemPenny pairs with. MemPenny removes; caveman compresses.
 
 ## License
 

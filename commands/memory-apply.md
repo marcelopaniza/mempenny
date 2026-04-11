@@ -57,6 +57,16 @@ rm -rf <MEMORY_DIR>/
 mv <MEMORY_DIR>.backup-YYYYMMDD/ <MEMORY_DIR>/
 ```
 
+After the rollback block, print the localized **next-step suggestion** from `apply.next_step_header` and `apply.next_step_suggestion`, substituting `{dir}` with the target directory. Example (en):
+
+```
+**Next step**
+
+Run `/mempenny:memory-compress --dir <MEMORY_DIR>` to compress the surviving prose with caveman (if installed). MemPenny removes what shouldn't be there; caveman shrinks what's left.
+```
+
+This is a suggestion, not an automatic action. The user runs compress when ready. If they don't have caveman, `/mempenny:memory-compress` will detect that and print install instructions rather than modifying anything.
+
 ---
 
 ## Apply prompt (pass to the subagent)

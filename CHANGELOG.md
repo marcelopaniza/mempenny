@@ -2,6 +2,23 @@
 
 All notable changes to MemPenny are documented here. This project follows [semantic versioning](https://semver.org/).
 
+## [0.3.0] — 2026-04-11
+
+### Added
+- **`/mempenny:memory-compress [--dir <path>] [--only <glob>] [--lang <code>]`** — new slash command that invokes `caveman:compress` on every surviving memory file in a directory. Shrinks prose while preserving code, commands, URLs, paths, frontmatter, and version numbers exactly. Per-file backups are handled by caveman natively (creates `FILE.original.md` alongside each compressed file).
+- **Graceful caveman detection.** `/mempenny:memory-compress` checks its available skills list for `caveman:compress` before touching any files. If caveman isn't installed, it prints the install instructions and exits without modifying anything — MemPenny still works fully standalone. The `caveman_not_installed` error message is in all three shipped locales.
+- **Trailing "next step" suggestion** on `/mempenny:memory-apply` output — after a successful apply, the command now recommends running `/mempenny:memory-compress --dir <same-dir>` as the logical next step. The suggestion is localized.
+- **`compress` section in all three locale files** (`en`, `pt-BR`, `es`) with labels for the summary block, rollback note, and nothing-to-compress edge case.
+- **README "After MemPenny: compress with caveman" section** — concrete end-to-end example (`triage → apply → compress`), the graceful-fallback story, and typical savings numbers when stacking both tools.
+
+### Changed
+- README quick-start now shows the full three-step flow (`triage → apply → compress`) alongside the minimum dry-run-only flow.
+- `/mempenny:memory-compress` respects existing MemPenny scope rules: skips `MEMORY.md`, `*.original.md`, `*.backup.md`, and anything under `archive/`.
+
+### Notes
+- No breaking changes. v0.2.1 behavior is preserved identically for users who don't run the new command.
+- Caveman is an optional dependency, not a hard one. MemPenny never bundles caveman's compression logic — it invokes caveman's own skill.
+
 ## [0.2.1] — 2026-04-11
 
 ### Fixed
