@@ -16,6 +16,10 @@ The user invoked this command with: $ARGUMENTS
 
 ## Step 2 — Load locale strings
 
+**2a — Validate `<lang>` before reading (H2: path traversal guard)**
+
+Before constructing the locale path, validate that `<lang>` matches the regex `^[a-zA-Z]{2,3}(-[A-Za-z0-9]{2,8})?$`. If it does not match, treat it exactly like a missing locale: silently reset `<lang>` to `en` and warn with `errors.locale_missing`.
+
 Read `${CLAUDE_PLUGIN_ROOT}/locales/<lang>/strings.json`. Fall back to `en` and warn with `errors.locale_missing` if missing. You need `distill.*` labels and `distill_output_instruction`.
 
 ## Step 3 — Read the target

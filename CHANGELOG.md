@@ -2,6 +2,35 @@
 
 All notable changes to MemPenny are documented here. This project follows [semantic versioning](https://semver.org/).
 
+## [0.4.0] — 2026-04-17
+
+### Breaking
+- **Plugin renamed from `mempenny` to `mp`.** All slash commands now invoke as `/mp:…` instead of `/mempenny:…`. Existing installs need to reinstall; there is no alias layer. The marketplace entry remains `marcelopaniza/mempenny` for discovery — only the invocation prefix changed.
+
+### Added
+- **`/mp:clean [--dir <path>] [--only <glob>] [--lang <code>] [--reconfigure]`** — one-shot memory cleanup. Triage + apply in a single pass with a single confirm gate. First run prompts for a backup folder (default: `<memory-dir>.backups/`) and saves the choice to `~/.claude/mempenny.config.json`; subsequent runs reuse it automatically. Backups go to `<backup-folder>/memory.backup-YYYYMMDDHHMMSS/` with a per-second timestamp so you can keep multiple backups side by side.
+- **`/mp:restore [<backup-name>|latest] [--dir <path>] [--lang <code>]`** — restore a backup created by `/mp:clean`. Lists available backups, prompts you to pick one (or pass `latest`), takes a safety snapshot of the current memory dir at `<memory-dir>.pre-restore-YYYYMMDDHHMMSS/` before overwriting, then restores. The safety snapshot means the restore itself is reversible.
+- **`clean.*` and `restore.*` sections in all three locale files** (`en`, `pt-BR`, `es`) covering first-run setup, triage summary labels, confirm prompts, and safety-snapshot notes.
+- **New error keys** `errors.backup_folder_invalid` and `errors.backup_not_found` for config path validation and restore lookup failures.
+
+### Changed
+- All `/mempenny:…` cross-references inside existing command files and the `apply.next_step_suggestion` locale string updated to `/mp:…`.
+- `/mp:memory-apply` now reads `~/.claude/mempenny.config.json` and writes backups to `{BACKUP_ROOT}/memory.backup-YYYYMMDDHHMMSS-PID/` when present, so `/mp:restore` can roll them back. Falls back to `{MEMORY_DIR}.backup-YYYYMMDDHHMMSS-PID/` when no config exists.
+- Fixed a same-day overwrite bug: `/mp:memory-apply` previously used a date-only timestamp that silently overwrote a prior same-day backup. Now uses UTC second-resolution + PID suffix.
+- Existing commands (`/mp:memory-triage`, `/mp:memory-apply`, `/mp:memory-distill`, `/mp:memory-compress`) are unchanged in behavior except for the invocation prefix and the backup-path unification above.
+
+### Security
+- Regex-gated `--dir` path validation (shell-injection guard) added to all five commands that accept `--dir`: `clean`, `restore`, `memory-triage`, `memory-apply`, `memory-compress`.
+- Locale path traversal guard (H2): `--lang` validated against `^[a-zA-Z]{2,3}(-[A-Za-z0-9]{2,8})?$` in all six commands before constructing the locale file path.
+- Realpath canonicalization and symlink rejection on all user-supplied directory paths.
+- `set -euo pipefail` added to all destructive bash blocks in memory-apply's apply prompt.
+- `mkdir -m 700` on backup directories; `chmod 600` on config file (both inherited from clean.md hardening).
+- Symlink-safe restore: Step 6 + Step 9 in restore.md reject symlinks before any `cp -a`.
+
+### Notes
+- Old backups created by `/mempenny:memory-apply` (date-only suffix, sibling path) are untouched and remain rollback-able by hand.
+- No data migration needed.
+
 ## [0.3.0] — 2026-04-11
 
 ### Added

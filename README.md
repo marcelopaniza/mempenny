@@ -38,69 +38,95 @@ The concrete advantages on a long-running project:
 1. **Lower per-conversation token cost.** Every conversation starts ~55% smaller after a triage. Over thousands of conversations, that's real money and real latency — and it never stops paying back until you add new rot.
 2. **Sharper model attention.** A bloated memory is noise. Stale postmortems "remind" Claude of fixes that are already in the code, causing it to mis-diagnose, re-apply old fixes, or mention features that no longer exist. Removing rot makes the model sharper, not just cheaper.
 3. **Forward-looking truth by default.** MemPenny's DISTILL action replaces narrative prose ("we investigated X, found Y, did Z") with a 1–3 sentence statement of what's *now true*. That's the only form of memory that doesn't eventually lie to future-you.
-4. **Backup-first, zero-loss by design.** Every apply pass creates `memory.backup-YYYYMMDD/` before touching anything. If a distillation turns out wrong, you roll back with a two-line command. The conservative bias is baked in — DELETE is the rarest action, not the default.
+4. **Backup-first, zero-loss by design.** Every apply pass creates a timestamped backup before touching anything (under `{backup_folder}` when a config exists, or as a sibling directory otherwise). If a distillation turns out wrong, you roll back via `/mp:restore` or a two-line shell command. The conservative bias is baked in — DELETE is the rarest action, not the default.
 5. **Composes cleanly with caveman.** Triage first (remove what shouldn't be there), then compress what survives. Stacking both tools on the real memory dir above dropped it from 366 KB to well under 100 KB — a 75%+ reduction on the auto-load path, entirely through lossless structural changes plus caveman's linguistic compression.
 6. **No Python, no scripts, no install friction.** MemPenny is all prompt templates. Two slash commands and you're done — no `pip install`, no script permissions, no runtime to maintain.
 7. **Localized so the memory stays in your language.** If your memories are in Portuguese, the distilled replacements stay in Portuguese. See [Localization](#localization) below.
 
-**The rule of thumb:** run `/mempenny:memory-triage` once a month on any project older than a few months. The pass is ~6 minutes of subagent time and almost always finds 30–60% savings.
+**The rule of thumb:** run `/mp:clean` once a month on any project older than a few months. The pass is ~6 minutes of subagent time and almost always finds 30–60% savings.
 
 ## Install
 
 ```
 /plugin marketplace add marcelopaniza/mempenny
-/plugin install mempenny@mempenny
+/plugin install mp@mempenny
 /reload-plugins
 ```
 
-After install, the three commands are namespaced under `mempenny:` — always invoke them as `/mempenny:memory-triage`, `/mempenny:memory-apply`, `/mempenny:memory-distill`. The bare form (`/memory-triage`) may or may not resolve depending on your other installed plugins; the namespaced form always works.
+After install, all commands are namespaced under `mp:` — invoke them as `/mp:clean`, `/mp:restore`, `/mp:memory-triage`, etc. The short `mp:` prefix is the invocation namespace; the marketplace entry is still `marcelopaniza/mempenny` for discovery.
+
+> **Upgrading from 0.3.x?** Reinstall — the namespace changed from `/mempenny:…` to `/mp:…`. Your existing backups are untouched.
 
 ## Commands
 
-- `/mempenny:memory-triage [--dir <path>] [--only <glob>] [--lang <code>]` — dry-run triage of a memory dir. Produces a markdown table at `/tmp/triage_table.md`. No writes. Defaults to the current project's memory dir; `--dir` points it anywhere.
-- `/mempenny:memory-apply [<table-file>] [--dir <path>] [--lang <code>]` — applies a previously approved triage table. Backs up first. Rolls back policy on failure. Use the same `--dir` you passed to `memory-triage`.
-- `/mempenny:memory-distill <file> [--lang <code>]` — one-off distillation of a single memory file. Interactive: shows the proposal, asks to apply / skip / edit.
-- `/mempenny:memory-compress [--dir <path>] [--only <glob>] [--lang <code>]` — invokes [caveman](https://github.com/JuliusBrussee/caveman)'s `compress` skill on each surviving memory file in the directory. Shrinks prose while preserving code, commands, URLs, paths, and version numbers. Requires caveman installed; falls back to install instructions if not.
+**Everyday (start here):**
+
+- `/mp:clean [--dir <path>] [--only <glob>] [--lang <code>] [--reconfigure]` — one-shot cleanup: triage + apply in a single pass with one confirm gate. First run prompts for a backup folder and saves the choice. Subsequent runs are one command.
+- `/mp:restore [<backup-name>|latest] [--dir <path>] [--lang <code>]` — restore a backup created by `/mp:clean`. Takes a safety snapshot of the current state before overwriting, so the restore itself is reversible.
+
+**Advanced (run each phase manually):**
+
+- `/mp:memory-triage [--dir <path>] [--only <glob>] [--lang <code>]` — dry-run triage of a memory dir. Produces a markdown table at `/tmp/triage_table.md`. No writes. Defaults to the current project's memory dir; `--dir` points it anywhere.
+- `/mp:memory-apply [<table-file>] [--dir <path>] [--lang <code>]` — applies a previously approved triage table. Backs up first. Rolls-back policy on failure. Use the same `--dir` you passed to `memory-triage`.
+- `/mp:memory-distill <file> [--lang <code>]` — one-off distillation of a single memory file. Interactive: shows the proposal, asks to apply / skip / edit.
+- `/mp:memory-compress [--dir <path>] [--only <glob>] [--lang <code>]` — invokes [caveman](https://github.com/JuliusBrussee/caveman)'s `compress` skill on each surviving memory file in the directory. Shrinks prose while preserving code, commands, URLs, paths, and version numbers. Requires caveman installed; falls back to install instructions if not.
 
 ## Quick start
 
-**Full three-step flow (triage → apply → compress):**
+**Everyday flow (one command):**
 
 ```
-/mempenny:memory-triage
+/mp:clean
+# First run: prompts you for a backup folder (default: <memory-dir>.backups/)
+# Shows proposed changes, asks "Apply these changes?", then does it
+# Subsequent runs reuse the saved backup folder — no prompt
+```
+
+**Roll back if something feels wrong:**
+
+```
+/mp:restore
+# Lists backups, you pick one; current state is snapshotted first (reversible)
+/mp:restore latest    # non-interactive: restore most recent backup
+```
+
+**Full three-step flow (manual, for power users who want to review the triage table):**
+
+```
+/mp:memory-triage
 # Review the proposed table at /tmp/triage_table.md
 
-/mempenny:memory-apply /tmp/triage_table.md
+/mp:memory-apply /tmp/triage_table.md
 # Backup created, obsolete/archived files removed, bloated files distilled
 
-/mempenny:memory-compress
+/mp:memory-compress
 # Caveman compresses prose in every surviving file (leaves code/URLs/paths alone)
 ```
 
 **Minimum flow (triage only, no writes):**
 
 ```
-/mempenny:memory-triage
+/mp:memory-triage
 # Review table, decide if the savings are worth it, stop here if not
 ```
 
 Want to target a subset?
 
 ```
-/mempenny:memory-triage --only "project_*_20*.md,reference_*.md"
+/mp:clean --only "project_*_20*.md,reference_*.md"
 ```
 
-Want to triage a different project's memory dir without switching sessions?
+Want to clean a different project's memory dir without switching sessions?
 
 ```
-/mempenny:memory-triage --dir /home/you/.claude/projects/-mnt-data-otherproject/memory/
+/mp:clean --dir /home/you/.claude/projects/-mnt-data-otherproject/memory/
 ```
 
 Working in Portuguese or Spanish?
 
 ```
-/mempenny:memory-triage --lang pt-BR
-/mempenny:memory-triage --lang es
+/mp:clean --lang pt-BR
+/mp:clean --lang es
 ```
 
 Or set it once and forget:
@@ -119,31 +145,54 @@ The key insight: MemPenny doesn't translate its instructions to Claude (those ar
 
 ## How it works
 
-All three commands are prompt templates. `/memory-triage` spawns a read-only `Explore` subagent that reads every file in scope and returns a markdown classification table. `/memory-apply` spawns a general-purpose subagent that performs the `rm` / `mv` / body-replace operations listed in the table, after creating a full backup. `/memory-distill` is interactive and runs in the main conversation — no subagent.
+All commands are prompt templates. `/mp:clean` orchestrates a triage subagent and an apply subagent back-to-back with a confirm gate between them, and remembers your backup folder in `~/.claude/mempenny.config.json` so future runs are one command. `/mp:restore` lists backups, takes a safety snapshot of the current state, and copies a chosen backup into place. Under the hood, `/mp:memory-triage` spawns a read-only `Explore` subagent that returns a markdown classification table; `/mp:memory-apply` spawns a general-purpose subagent that performs the `rm` / `mv` / body-replace operations, after creating a full backup. `/mp:memory-distill` is interactive and runs in the main conversation — no subagent.
 
-There's no Python, no shell scripts, no daemon. The whole plugin is five markdown files, three JSON locale files, and a plugin manifest.
+There's no Python, no shell scripts, no daemon. The whole plugin is markdown command files, three JSON locale files, and a plugin manifest.
 
 ## Requirements
 
 - Claude Code with auto-memory enabled
 - No other dependencies
 
-## Rollback (if something goes wrong after `/memory-apply`)
+## Rollback
 
-Every apply creates a full backup at `<memory-dir>.backup-YYYYMMDD/`. To roll back:
+**If you used `/mp:clean`**: run `/mp:restore` and pick the backup you want. It snapshots the current state first, so the restore itself is reversible.
+
+**If you used `/mp:memory-apply` with a config present** (`~/.claude/mempenny.config.json`): the backup goes to `{backup_folder}/memory.backup-YYYYMMDDHHMMSS-PID/` — the same root that `/mp:clean` uses. Run `/mp:restore` to list and restore it interactively, or roll back by hand:
 
 ```bash
 rm -rf ~/.claude/projects/<project-id>/memory/
-mv ~/.claude/projects/<project-id>/memory.backup-YYYYMMDD/ ~/.claude/projects/<project-id>/memory/
+mv "<backup_folder>/memory.backup-YYYYMMDDHHMMSS-PID/" ~/.claude/projects/<project-id>/memory/
 ```
 
-Delete the backup after ~2 weeks if nothing feels wrong.
+**If you used `/mp:memory-apply` without a config** (no `~/.claude/mempenny.config.json`): the backup falls back to the legacy sibling path `<memory-dir>.backup-YYYYMMDDHHMMSS-PID/`. Roll back by hand:
+
+```bash
+rm -rf ~/.claude/projects/<project-id>/memory/
+mv ~/.claude/projects/<project-id>/memory.backup-YYYYMMDDHHMMSS-PID/ ~/.claude/projects/<project-id>/memory/
+```
+
+This fallback path is NOT found by `/mp:restore` (which only scans `{backup_folder}`). Run `/mp:clean` once to set up a config and all future `/mp:memory-apply` backups will go to the unified location.
+
+### Backup retention
+
+Backups accumulate and are never deleted automatically. Periodically prune old ones you no longer need:
+
+```bash
+# List all backups in the configured folder
+ls $(jq -r .backup_folder ~/.claude/mempenny.config.json)
+
+# List legacy sibling backups (if any)
+ls -d ~/.claude/projects/<project-id>/memory.backup-*/
+```
+
+A safe rule of thumb: keep the last 3–5 backups and delete anything older than 2 weeks if nothing feels wrong.
 
 ## After MemPenny: compress with caveman
 
 MemPenny removes what shouldn't be there. [Caveman](https://github.com/JuliusBrussee/caveman) compresses what's left — stripping prose padding while preserving code, commands, URLs, paths, frontmatter, and version numbers exactly. Running both in sequence is the full story.
 
-**If caveman is already installed**, just run `/mempenny:memory-compress` after an apply. MemPenny invokes `caveman:compress` on each surviving file individually, tracks total bytes saved, and reports back. Each file gets its own per-file backup at `<filename>.original.md` (created by caveman, not MemPenny) so rollback is one `mv` per file.
+**If caveman is already installed**, just run `/mp:memory-compress` after a clean or apply. MemPenny invokes `caveman:compress` on each surviving file individually, tracks total bytes saved, and reports back. Each file gets its own per-file backup at `<filename>.original.md` (created by caveman, not MemPenny) so rollback is one `mv` per file.
 
 **If caveman isn't installed**, MemPenny detects that, prints the install commands, and stops without modifying anything:
 
@@ -153,7 +202,7 @@ MemPenny removes what shouldn't be there. [Caveman](https://github.com/JuliusBru
 /reload-plugins
 ```
 
-Then re-run `/mempenny:memory-compress`. The graceful-fallback design means MemPenny works fully without caveman — the composability is opt-in, not a hard dependency.
+Then re-run `/mp:memory-compress`. The graceful-fallback design means MemPenny works fully without caveman — the composability is opt-in, not a hard dependency.
 
 **Typical stacking result on a long-running project:** MemPenny alone cuts auto-load by ~30–55% (deletes + archives + distillations). Running caveman on the KEEP survivors adds another ~30–40% on top through prose compression. Together: often 60–75% off the auto-load path with zero technical loss.
 

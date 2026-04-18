@@ -5,7 +5,7 @@ argument-hint: [--dir <path>] [--only <glob>] [--lang <code>]
 
 Compress every `.md` file in a memory directory by invoking the `caveman:compress` skill on each file individually. Caveman preserves all technical substance (code, URLs, paths, commands, version numbers, frontmatter) and shrinks only the prose. Each file is backed up by caveman as `FILE.original.md` before being overwritten.
 
-This is the final step after `/mempenny:memory-triage` + `/mempenny:memory-apply`. Run it on the same directory to compress the surviving KEEP + DISTILL files.
+This is the final step after `/mp:memory-triage` + `/mp:memory-apply`. Run it on the same directory to compress the surviving KEEP + DISTILL files.
 
 ## Step 1 — Parse arguments
 
@@ -18,6 +18,10 @@ Parse three optional arguments from `$ARGUMENTS`:
 - `--lang <code>` — output language for user-visible labels. If not passed, check `MEMPENNY_LOCALE`. Default `en`.
 
 ## Step 2 — Load locale strings
+
+**2a — Validate `<lang>` before reading (H2: path traversal guard)**
+
+Before constructing the locale path, validate that `<lang>` matches the regex `^[a-zA-Z]{2,3}(-[A-Za-z0-9]{2,8})?$`. If it does not match, treat it exactly like a missing locale: silently reset `<lang>` to `en` and warn with `errors.locale_missing`.
 
 Read `${CLAUDE_PLUGIN_ROOT}/locales/<lang>/strings.json`. Fall back to `en` and warn with `errors.locale_missing` if missing. You need `compress.*` labels for the summary and `errors.caveman_not_installed` for the fallback message.
 
@@ -39,16 +43,25 @@ The default English fallback message is:
 > /reload-plugins
 > ```
 >
-> Then re-run `/mempenny:memory-compress --dir {dir}`.
+> Then re-run `/mp:memory-compress --dir {dir}`.
 
 **If `caveman:compress` IS in your skills list**, proceed to Step 4.
 
 ## Step 4 — Locate the memory directory
 
-Same logic as `/memory-triage`:
+**If `--dir <path>` was passed in Step 1**, apply the following validation before using it. On any failure, print `errors.memory_dir_not_found` and STOP:
 
-- If `--dir` was passed, use it verbatim. Verify the directory exists and contains at least one `.md` file.
-- Otherwise, auto-detect `~/.claude/projects/<project-id>/memory/` from the current project. If uncertain, ask the user (use `errors.memory_dir_not_found`).
+**Validate `--dir <path>` (C-class shell-injection guard):**
+1. Regex: the candidate path must match `^/[A-Za-z0-9/_.\- ]{1,4096}$` (alphanumerics, slash, underscore, dot, hyphen, space only).
+2. Realpath: run `realpath "<candidate>"` via Bash. Use the resolved value for all subsequent steps.
+3. Depth: reject if the realpath equals `/` or has fewer than 2 path components.
+4. Existence + not-a-symlink: `[ -d "$resolved" ] && [ ! -L "$resolved" ]`.
+
+If all checks pass, use the resolved path as `{MEMORY_DIR}`. Verify it contains at least one `.md` file before continuing.
+
+**Otherwise**, auto-detect `~/.claude/projects/<project-id>/memory/` from the current project. If uncertain, ask the user (use `errors.memory_dir_not_found`).
+
+**Regardless of whether the path came from `--dir` or auto-detection, apply the 4-check validation block above before using it as `{MEMORY_DIR}`.** If validation fails on the auto-detected path, print `errors.memory_dir_not_found` and STOP.
 
 ## Step 5 — Determine scope
 

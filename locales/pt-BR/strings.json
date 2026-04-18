@@ -36,7 +36,7 @@
     "rollback_comment": "Reverter se algo parecer errado",
     "warnings_header": "Avisos",
     "next_step_header": "Próximo passo",
-    "next_step_suggestion": "Execute `/mempenny:memory-compress --dir {dir}` para comprimir a prosa sobrevivente com caveman (se instalado). MemPenny remove o que não deveria estar lá; caveman comprime o que resta."
+    "next_step_suggestion": "Execute `/mp:memory-compress --dir {dir}` para comprimir a prosa sobrevivente com caveman (se instalado). MemPenny remove o que não deveria estar lá; caveman comprime o que resta."
   },
   "compress": {
     "header": "Compressão concluída",
@@ -66,11 +66,42 @@
     "skipped_message": "Arquivo mantido sem alterações.",
     "cannot_compress_message": "Não é possível caber todo o conteúdo essencial em 3 frases sem perda. Recuso-me a mentir com uma destilação ruim."
   },
+  "clean": {
+    "first_run_header": "Configuração inicial",
+    "first_run_intro": "MemPenny guarda backups antes de mexer nos seus arquivos de memória. Onde salvar os backups?",
+    "first_run_default": "Padrão: {default}",
+    "first_run_prompt": "Pressione Enter para aceitar o padrão, ou digite um caminho absoluto",
+    "config_saved": "Configuração salva em {path}. As próximas execuções de /mp:clean usarão essa pasta automaticamente.",
+    "backup_folder_label": "Pasta de backup",
+    "memory_dir_label": "Diretório de memória",
+    "running_triage": "Executando triagem (simulação)…",
+    "triage_summary_header": "Alterações propostas",
+    "auto_apply_note": "Aplicando alterações agora. Backup será criado em {path}.",
+    "done_header": "Limpeza concluída",
+    "rollback_hint": "Reverter: /mp:restore  (ou /mp:restore {backup_name})"
+  },
+  "restore": {
+    "header": "Backups disponíveis",
+    "no_backups_found": "Nenhum backup encontrado em {path}. Nada para restaurar.",
+    "no_config": "Ainda não há configuração — execute /mp:clean uma vez para o MemPenny saber onde estão seus backups.",
+    "backup_entry": "{index}. {name}  ({size}, {date})",
+    "pick_prompt": "Qual backup restaurar? (número, nome, ou 'latest')",
+    "confirm_header": "Prestes a restaurar",
+    "confirm_from": "De:   {backup}",
+    "confirm_to": "Para: {target}  (o conteúdo atual será sobrescrito)",
+    "confirm_safety": "O diretório de memória atual será movido para {safety} antes da restauração, caso você mude de ideia.",
+    "confirm_prompt": "Prosseguir? (sim/não)",
+    "restore_complete": "Restaurado {backup} → {target}.",
+    "safety_snapshot_note": "Snapshot pré-restauração: {safety} (apague quando tiver certeza)",
+    "cancelled": "Restauração cancelada. Nenhum arquivo alterado."
+  },
   "errors": {
     "memory_dir_not_found": "Não foi possível localizar o diretório de auto-memória. Forneça o caminho absoluto.",
     "table_not_found": "Tabela de triagem não encontrada em {path}. Execute `/memory-triage` primeiro, ou passe o caminho como argumento.",
     "backup_failed": "Falha ao criar backup. PARANDO. Nenhum arquivo foi modificado.",
     "locale_missing": "Locale '{lang}' não encontrado. Voltando para inglês. Envie um PR de tradução em https://github.com/marcelopaniza/mempenny/tree/main/locales",
-    "caveman_not_installed": "Caveman não está instalado. MemPenny remove o que não deveria estar lá; caveman comprime o que resta. Para instalar:\n\n```\n/plugin marketplace add JuliusBrussee/caveman\n/plugin install caveman@caveman\n/reload-plugins\n```\n\nDepois execute novamente `/mempenny:memory-compress --dir {dir}`."
+    "caveman_not_installed": "Caveman não está instalado. MemPenny remove o que não deveria estar lá; caveman comprime o que resta. Para instalar:\n\n```\n/plugin marketplace add JuliusBrussee/caveman\n/plugin install caveman@caveman\n/reload-plugins\n```\n\nDepois execute novamente `/mp:memory-compress --dir {dir}`.",
+    "backup_folder_invalid": "O caminho da pasta de backup deve ser absoluto e gravável: {path}",
+    "backup_not_found": "Backup não encontrado: {name}"
   }
 }

@@ -17,13 +17,25 @@ Parse three optional arguments from `$ARGUMENTS`:
 
 ## Step 2 — Load locale strings
 
+**2a — Validate `<lang>` before reading (H2: path traversal guard)**
+
+Before constructing the locale path, validate that `<lang>` matches the regex `^[a-zA-Z]{2,3}(-[A-Za-z0-9]{2,8})?$`. If it does not match, treat it exactly like a missing locale: silently reset `<lang>` to `en` and warn with `errors.locale_missing`.
+
 Read `${CLAUDE_PLUGIN_ROOT}/locales/<lang>/strings.json` using the Read tool. If the file does not exist, fall back to `${CLAUDE_PLUGIN_ROOT}/locales/en/strings.json` and warn the user with the `errors.locale_missing` message (filling in `{lang}` with the requested code).
 
 Keep the loaded JSON in working memory — you'll need `triage.*` labels for the final summary and `distill_output_instruction` for the subagent prompt.
 
 ## Step 3 — Locate the memory directory
 
-**If `--dir <path>` was passed in Step 1**, use that path verbatim as `{MEMORY_DIR}`. Verify the directory exists and contains at least one `.md` file before continuing. Skip the rest of this step.
+**If `--dir <path>` was passed in Step 1**, apply the following validation before using it. On any failure, print `errors.memory_dir_not_found` and STOP:
+
+**Validate `--dir <path>` (C-class shell-injection guard):**
+1. Regex: the candidate path must match `^/[A-Za-z0-9/_.\- ]{1,4096}$` (alphanumerics, slash, underscore, dot, hyphen, space only).
+2. Realpath: run `realpath "<candidate>"` via Bash. Use the resolved value for all subsequent steps.
+3. Depth: reject if the realpath equals `/` or has fewer than 2 path components.
+4. Existence + not-a-symlink: `[ -d "$resolved" ] && [ ! -L "$resolved" ]`.
+
+If all checks pass, use the resolved path as `{MEMORY_DIR}`. Verify it contains at least one `.md` file before continuing. Skip the rest of this step.
 
 **Otherwise**, auto-detect: the auto-memory directory for the current project is at `~/.claude/projects/<project-id>/memory/`. Detect `<project-id>` from the current working directory's mapping. If you cannot determine it unambiguously, ask the user for the absolute path to their memory directory (use `errors.memory_dir_not_found` as the error template).
 

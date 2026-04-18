@@ -36,7 +36,7 @@
     "rollback_comment": "Revertir si algo parece incorrecto",
     "warnings_header": "Advertencias",
     "next_step_header": "Siguiente paso",
-    "next_step_suggestion": "Ejecuta `/mempenny:memory-compress --dir {dir}` para comprimir la prosa superviviente con caveman (si está instalado). MemPenny elimina lo que no debería estar; caveman comprime lo que queda."
+    "next_step_suggestion": "Ejecuta `/mp:memory-compress --dir {dir}` para comprimir la prosa superviviente con caveman (si está instalado). MemPenny elimina lo que no debería estar; caveman comprime lo que queda."
   },
   "compress": {
     "header": "Compresión completada",
@@ -66,11 +66,42 @@
     "skipped_message": "Archivo sin cambios.",
     "cannot_compress_message": "No se puede encajar todo el contenido esencial en 3 frases sin pérdida. Me niego a mentir con una destilación defectuosa."
   },
+  "clean": {
+    "first_run_header": "Configuración inicial",
+    "first_run_intro": "MemPenny guarda respaldos antes de modificar tus archivos de memoria. ¿Dónde guardar los respaldos?",
+    "first_run_default": "Predeterminado: {default}",
+    "first_run_prompt": "Pulsa Enter para aceptar el predeterminado, o escribe una ruta absoluta",
+    "config_saved": "Configuración guardada en {path}. Las próximas ejecuciones de /mp:clean usarán esta carpeta automáticamente.",
+    "backup_folder_label": "Carpeta de respaldo",
+    "memory_dir_label": "Directorio de memoria",
+    "running_triage": "Ejecutando triaje (simulación)…",
+    "triage_summary_header": "Cambios propuestos",
+    "auto_apply_note": "Aplicando cambios ahora. Se creará un respaldo en {path}.",
+    "done_header": "Limpieza completada",
+    "rollback_hint": "Revertir: /mp:restore  (o /mp:restore {backup_name})"
+  },
+  "restore": {
+    "header": "Respaldos disponibles",
+    "no_backups_found": "No hay respaldos en {path}. Nada que restaurar.",
+    "no_config": "Aún no hay configuración — ejecuta /mp:clean una vez para que MemPenny sepa dónde están tus respaldos.",
+    "backup_entry": "{index}. {name}  ({size}, {date})",
+    "pick_prompt": "¿Qué respaldo restaurar? (número, nombre o 'latest')",
+    "confirm_header": "A punto de restaurar",
+    "confirm_from": "Desde: {backup}",
+    "confirm_to": "A:     {target}  (el contenido actual será sobrescrito)",
+    "confirm_safety": "El directorio de memoria actual será movido a {safety} antes de restaurar, por si cambias de opinión.",
+    "confirm_prompt": "¿Continuar? (sí/no)",
+    "restore_complete": "Restaurado {backup} → {target}.",
+    "safety_snapshot_note": "Instantánea previa a la restauración: {safety} (elimínala cuando estés seguro)",
+    "cancelled": "Restauración cancelada. Ningún archivo modificado."
+  },
   "errors": {
     "memory_dir_not_found": "No se pudo localizar el directorio de auto-memoria. Proporciona la ruta absoluta.",
     "table_not_found": "Tabla de triaje no encontrada en {path}. Ejecuta `/memory-triage` primero, o pasa la ruta como argumento.",
     "backup_failed": "Fallo al crear el respaldo. DETENIENDO. No se modificó ningún archivo.",
     "locale_missing": "Locale '{lang}' no encontrado. Volviendo al inglés. Envía un PR de traducción en https://github.com/marcelopaniza/mempenny/tree/main/locales",
-    "caveman_not_installed": "Caveman no está instalado. MemPenny elimina lo que no debería estar; caveman comprime lo que queda. Para instalar:\n\n```\n/plugin marketplace add JuliusBrussee/caveman\n/plugin install caveman@caveman\n/reload-plugins\n```\n\nLuego ejecuta de nuevo `/mempenny:memory-compress --dir {dir}`."
+    "caveman_not_installed": "Caveman no está instalado. MemPenny elimina lo que no debería estar; caveman comprime lo que queda. Para instalar:\n\n```\n/plugin marketplace add JuliusBrussee/caveman\n/plugin install caveman@caveman\n/reload-plugins\n```\n\nLuego ejecuta de nuevo `/mp:memory-compress --dir {dir}`.",
+    "backup_folder_invalid": "La ruta de la carpeta de respaldo debe ser absoluta y con permisos de escritura: {path}",
+    "backup_not_found": "Respaldo no encontrado: {name}"
   }
 }
