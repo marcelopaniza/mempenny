@@ -13,8 +13,8 @@ The user invoked this command with: $ARGUMENTS
 
 Parse three optional arguments from `$ARGUMENTS`:
 
-- `--dir <path>` — absolute path to the memory directory. If set, use verbatim; otherwise auto-detect the current project's memory dir (same logic as `/memory-triage`).
-- `--only <glob>` — scope filter (e.g., `--only project_*.md`). Default: every `.md` file directly under the memory dir. Multiple globs can be comma-separated.
+- `--dir <path>` — absolute path to the memory directory. If set, use verbatim; otherwise auto-detect the current project's memory dir (same logic as `/mp:memory-triage`).
+- `--only <glob>` — scope filter. Multiple globs comma-separated. **L2 validation:** must match `^[A-Za-z0-9_.\-*?\[\]{},]{1,256}$` — no `/`, no space, no shell metacharacters. Flows into `find` commands in Step 6.
 - `--lang <code>` — output language for user-visible labels. If not passed, check `MEMPENNY_LOCALE`. Default `en`.
 
 ## Step 2 — Load locale strings
@@ -23,7 +23,7 @@ Parse three optional arguments from `$ARGUMENTS`:
 
 Before constructing the locale path, validate that `<lang>` matches the regex `^[a-zA-Z]{2,3}(-[A-Za-z0-9]{2,8})?$`. If it does not match, treat it exactly like a missing locale: silently reset `<lang>` to `en` and warn with `errors.locale_missing`.
 
-Read `${CLAUDE_PLUGIN_ROOT}/locales/<lang>/strings.json`. Fall back to `en` and warn with `errors.locale_missing` if missing. You need `compress.*` labels for the summary and `errors.caveman_not_installed` for the fallback message.
+Read `${CLAUDE_PLUGIN_ROOT}/locales/<lang>/strings.json`. Fall back to `en` and warn with `errors.locale_missing` if missing. You need `compress.*` labels for the summary and `errors.caveman_not_installed_prose` for the fallback message wrapper (Step 3 hard-codes the install command block itself — H4 fix: locale files no longer carry executable commands, so a malicious translation PR can't swap them).
 
 ## Step 3 — Verify caveman is installed
 
@@ -31,19 +31,15 @@ Read `${CLAUDE_PLUGIN_ROOT}/locales/<lang>/strings.json`. Fall back to `en` and 
 
 **If `caveman:compress` is NOT in your skills list:**
 
-Print the localized `errors.caveman_not_installed` message (substituting `{dir}` with the target directory so the user knows where to retry). Do NOT modify any files. STOP.
+Print the localized `errors.caveman_not_installed_prose` message (substituting `{dir}` with the target directory), then print the install command block below **verbatim from this file** — do NOT read it from the locale. H4 fix: a translation PR should never be able to swap the commands the user copy-pastes into their shell. Do NOT modify any files. STOP.
 
-The default English fallback message is:
+**The install command block (print this exact fenced block after the localized prose):**
 
-> Caveman is not installed. MemPenny's triage removes what shouldn't be there; caveman compresses what's left. To install:
->
-> ```
-> /plugin marketplace add JuliusBrussee/caveman
-> /plugin install caveman@caveman
-> /reload-plugins
-> ```
->
-> Then re-run `/mp:memory-compress --dir {dir}`.
+```
+/plugin marketplace add JuliusBrussee/caveman
+/plugin install caveman@caveman
+/reload-plugins
+```
 
 **If `caveman:compress` IS in your skills list**, proceed to Step 4.
 

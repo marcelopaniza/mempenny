@@ -66,8 +66,8 @@ After install, all commands are namespaced under `mp:` — invoke them as `/mp:c
 
 **Advanced (run each phase manually):**
 
-- `/mp:memory-triage [--dir <path>] [--only <glob>] [--lang <code>]` — dry-run triage of a memory dir. Produces a markdown table at `/tmp/triage_table.md`. No writes. Defaults to the current project's memory dir; `--dir` points it anywhere.
-- `/mp:memory-apply [<table-file>] [--dir <path>] [--lang <code>]` — applies a previously approved triage table. Backs up first. Rolls-back policy on failure. Use the same `--dir` you passed to `memory-triage`.
+- `/mp:memory-triage [--dir <path>] [--only <glob>] [--lang <code>]` — dry-run triage of a memory dir. Produces a markdown table at a private `mktemp` path (printed in the summary) with permissions `600`. No writes to the memory dir. Defaults to the current project's memory dir; `--dir` points it anywhere.
+- `/mp:memory-apply <table-file> [--dir <path>] [--lang <code>]` — applies a previously approved triage table. The table path is **required** (v0.4.1+) — pass the path printed by `/mp:memory-triage`. Backs up first. Rolls-back policy on failure. Use the same `--dir` you passed to `memory-triage`.
 - `/mp:memory-distill <file> [--lang <code>]` — one-off distillation of a single memory file. Interactive: shows the proposal, asks to apply / skip / edit.
 - `/mp:memory-compress [--dir <path>] [--only <glob>] [--lang <code>]` — invokes [caveman](https://github.com/JuliusBrussee/caveman)'s `compress` skill on each surviving memory file in the directory. Shrinks prose while preserving code, commands, URLs, paths, and version numbers. Requires caveman installed; falls back to install instructions if not.
 
@@ -94,9 +94,9 @@ After install, all commands are namespaced under `mp:` — invoke them as `/mp:c
 
 ```
 /mp:memory-triage
-# Review the proposed table at /tmp/triage_table.md
+# Review the proposed table at the mktemp path it printed (e.g. /tmp/mempenny-triage-AbCdEfGh.md)
 
-/mp:memory-apply /tmp/triage_table.md
+/mp:memory-apply /tmp/mempenny-triage-AbCdEfGh.md
 # Backup created, obsolete/archived files removed, bloated files distilled
 
 /mp:memory-compress
@@ -158,18 +158,26 @@ There's no Python, no shell scripts, no daemon. The whole plugin is markdown com
 
 **If you used `/mp:clean`**: run `/mp:restore` and pick the backup you want. It snapshots the current state first, so the restore itself is reversible.
 
-**If you used `/mp:memory-apply` with a config present** (`~/.claude/mempenny.config.json`): the backup goes to `{backup_folder}/memory.backup-YYYYMMDDHHMMSS-PID/` — the same root that `/mp:clean` uses. Run `/mp:restore` to list and restore it interactively, or roll back by hand:
+**If you used `/mp:memory-apply` with a config present** (`~/.claude/mempenny.config.json`): the backup goes to `{backup_folder}/memory.backup-YYYYMMDDHHMMSS-PID/` — the same root that `/mp:clean` uses. Run `/mp:restore` to list and restore it interactively — strongly preferred over hand-rolling. If you insist on manual rollback:
 
 ```bash
-rm -rf ~/.claude/projects/<project-id>/memory/
-mv "<backup_folder>/memory.backup-YYYYMMDDHHMMSS-PID/" ~/.claude/projects/<project-id>/memory/
+# !!! REPLACE every <PLACEHOLDER> before running. Running this literally will silently fail
+# !!! (the angle-bracket paths don't exist), but DO NOT paste into a shell without replacing.
+# <PROJECT_ID> = e.g. -mnt-data-myproject    (find it with: ls ~/.claude/projects/)
+# <BACKUP_FOLDER> = absolute path from: jq -r .backup_folder ~/.claude/mempenny.config.json
+# <TIMESTAMP> = the exact 14-digit UTC timestamp of the backup dir (ls your backup folder)
+# <PID> = the numeric PID suffix (check the backup dir name)
+
+rm -rf ~/.claude/projects/<PROJECT_ID>/memory/
+mv "<BACKUP_FOLDER>/memory.backup-<TIMESTAMP>-<PID>/" ~/.claude/projects/<PROJECT_ID>/memory/
 ```
 
 **If you used `/mp:memory-apply` without a config** (no `~/.claude/mempenny.config.json`): the backup falls back to the legacy sibling path `<memory-dir>.backup-YYYYMMDDHHMMSS-PID/`. Roll back by hand:
 
 ```bash
-rm -rf ~/.claude/projects/<project-id>/memory/
-mv ~/.claude/projects/<project-id>/memory.backup-YYYYMMDDHHMMSS-PID/ ~/.claude/projects/<project-id>/memory/
+# !!! Same placeholder caveat as above.
+rm -rf ~/.claude/projects/<PROJECT_ID>/memory/
+mv ~/.claude/projects/<PROJECT_ID>/memory.backup-<TIMESTAMP>-<PID>/ ~/.claude/projects/<PROJECT_ID>/memory/
 ```
 
 This fallback path is NOT found by `/mp:restore` (which only scans `{backup_folder}`). Run `/mp:clean` once to set up a config and all future `/mp:memory-apply` backups will go to the unified location.

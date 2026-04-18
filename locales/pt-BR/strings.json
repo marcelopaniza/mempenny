@@ -17,7 +17,7 @@
     "total_before_label": "Total antes",
     "total_after_label": "Total depois",
     "net_savings_label": "Economia líquida",
-    "review_instruction": "Revise {table_path}, depois execute `/memory-apply` para aplicar. A etapa de aplicação cria um backup completo antes de qualquer alteração.",
+    "review_instruction": "Revise {table_path}, depois execute `/mp:memory-apply {table_path}` para aplicar. A etapa de aplicação cria um backup completo antes de qualquer alteração.",
     "high_confidence_deletes_header": "Exemplos de APAGAR (alta confiança)",
     "distill_examples_header": "Exemplos de DESTILAR"
   },
@@ -78,7 +78,8 @@
     "triage_summary_header": "Alterações propostas",
     "auto_apply_note": "Aplicando alterações agora. Backup será criado em {path}.",
     "done_header": "Limpeza concluída",
-    "rollback_hint": "Reverter: /mp:restore  (ou /mp:restore {backup_name})"
+    "rollback_hint": "Reverter: /mp:restore  (ou /mp:restore {backup_name})",
+    "backup_pruning_hint": "Os backups se acumulam ao longo do tempo. Execute `ls {backup_root}` periodicamente e apague os backups antigos que você não precisa mais."
   },
   "restore": {
     "header": "Backups disponíveis",
@@ -93,14 +94,15 @@
     "confirm_prompt": "Prosseguir? (sim/não)",
     "restore_complete": "Restaurado {backup} → {target}.",
     "safety_snapshot_note": "Snapshot pré-restauração: {safety} (apague quando tiver certeza)",
-    "cancelled": "Restauração cancelada. Nenhum arquivo alterado."
+    "cancelled": "Restauração cancelada. Nenhum arquivo alterado.",
+    "safety_retention_hint": "Os snapshots de segurança se acumulam ao longo do tempo. Execute `ls -d {memory_dir}.pre-restore-*` periodicamente para ver; apague os com mais de ~2 semanas se nada parecer errado."
   },
   "errors": {
     "memory_dir_not_found": "Não foi possível localizar o diretório de auto-memória. Forneça o caminho absoluto.",
-    "table_not_found": "Tabela de triagem não encontrada em {path}. Execute `/memory-triage` primeiro, ou passe o caminho como argumento.",
+    "table_not_found": "Tabela de triagem não encontrada em {path}. Execute `/mp:memory-triage` primeiro, depois passe o caminho da tabela impresso como primeiro argumento para `/mp:memory-apply`.",
     "backup_failed": "Falha ao criar backup. PARANDO. Nenhum arquivo foi modificado.",
     "locale_missing": "Locale '{lang}' não encontrado. Voltando para inglês. Envie um PR de tradução em https://github.com/marcelopaniza/mempenny/tree/main/locales",
-    "caveman_not_installed": "Caveman não está instalado. MemPenny remove o que não deveria estar lá; caveman comprime o que resta. Para instalar:\n\n```\n/plugin marketplace add JuliusBrussee/caveman\n/plugin install caveman@caveman\n/reload-plugins\n```\n\nDepois execute novamente `/mp:memory-compress --dir {dir}`.",
+    "caveman_not_installed_prose": "Caveman não está instalado. MemPenny remove o que não deveria estar lá; caveman comprime o que resta. Para instalar, execute os comandos mostrados abaixo, depois execute novamente `/mp:memory-compress --dir {dir}`.",
     "backup_folder_invalid": "O caminho da pasta de backup deve ser absoluto e gravável: {path}",
     "backup_not_found": "Backup não encontrado: {name}"
   }

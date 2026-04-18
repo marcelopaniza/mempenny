@@ -23,16 +23,24 @@ Read `${CLAUDE_PLUGIN_ROOT}/locales/<lang>/strings.json`. Fall back to `en` if t
 
 ## Step 3 — Read the config
 
-Read `~/.claude/mempenny.config.json`. It must contain `backup_folder`.
+**F-M2 + F2-M3 — symlink guard first** (stdout sentinel):
+```bash
+if [ -L ~/.claude/mempenny.config.json ]; then
+  echo "MEMPENNY_CONFIG_INVALID=symlink"
+fi
+```
+If the block prints `MEMPENNY_CONFIG_INVALID=symlink`, STOP with `restore.no_config`. A symlink'd config is suspicious (an attacker may have redirected it); refuse to restore anything until the user investigates. Unlike `/mp:clean` (which falls through to first-run setup), `/mp:restore` has no safe fallback — aborting is correct.
+
+Otherwise, Read `~/.claude/mempenny.config.json`. It must contain `backup_folder`.
 
 If the file does not exist, print `restore.no_config` and STOP. The user has never run `/mp:clean`, so there's nothing to restore.
 
-**Config validation (M1 — parallel to clean.md Step 4):** If the file exists, run ALL of the following checks. If ANY check fails, print `restore.no_config` and STOP — do not continue with an untrustworthy path:
+**Config validation (M1 + C1 — parallel to clean.md Step 4):** If the file exists, run ALL of the following checks. If ANY check fails, print `restore.no_config` and STOP — do not continue with an untrustworthy path:
 
 1. JSON must parse cleanly.
 2. `backup_folder` must be a string (not a number, null, array, or object).
-3. `backup_folder` must match the regex `^/[^\x00\n]{1,4096}$` (absolute path, no NUL byte, no newline, max 4096 chars).
-4. Run `realpath "{backup_folder}"` via Bash and verify the resolved value still starts with `/`.
+3. `backup_folder` must match the regex `^/[A-Za-z0-9/_.\- ]{1,4096}$` — the same tight regex as `--dir` validation. **C1 fix:** an earlier version used `^/[^\x00\n]{1,4096}$` which permitted shell metacharacters; a tampered config like `"backup_folder": "/tmp/x$(cmd)"` would have fired command substitution during the subsequent `realpath` call (double-quotes don't prevent `$(…)`). Reject such paths before any bash interpolation.
+4. Run `realpath "{backup_folder}"` via Bash (safe now that the regex is tight) and verify the resolved value still starts with `/` AND still matches the same tight regex.
 
 Hold the **realpath-resolved** value as `{BACKUP_ROOT}`.
 
@@ -49,6 +57,8 @@ Hold the **realpath-resolved** value as `{BACKUP_ROOT}`.
 If all checks pass, use the resolved path as `{MEMORY_DIR}`.
 
 **Otherwise**, auto-detect `~/.claude/projects/<project-id>/memory/`.
+
+**Regardless of whether the path came from `--dir` or auto-detection, apply checks 1-3 of the validation block above before using it as `{MEMORY_DIR}` (H5).** For restore, check 4 is conditional (directory may not exist yet), but checks 1-3 (regex, realpath, depth) must pass. If validation fails on the auto-detected path, print `errors.memory_dir_not_found` and STOP.
 
 Hold as `{MEMORY_DIR}`. It's OK if it doesn't exist yet — restore will create it.
 
@@ -164,13 +174,59 @@ If `{MEMORY_DIR}` doesn't exist (e.g., user wiped it themselves), skip the `mv` 
 
 This fires at the very start of Step 9 before any write. If `{MEMORY_DIR}` still exists at this point, something went wrong in Step 8 — abort immediately.
 
-Copy the backup into place:
+**F2-L2 — pre-everything TOCTOU re-check** (F4-M1: moved ahead of the integrity check so a symlink-swap attack is caught before we waste a verification pass on attacker-controlled content). Step 6 validated the backup dir as a non-symlink, but the user's confirm prompt (Step 7) creates a window during which an attacker with write access to `{BACKUP_ROOT}` could swap the dir for a symlink pointing at a staged dir with a matching MANIFEST. Re-assert FIRST:
 
 ```bash
+[ -L "{BACKUP_ROOT}/{chosen-name}" ] && { echo "ABORT (pre-restore TOCTOU): backup became a symlink"; exit 1; }
+[ -d "{BACKUP_ROOT}/{chosen-name}" ] || { echo "ABORT: backup dir missing"; exit 1; }
+```
+
+**M4 + F-M3 — backup integrity check (runs AFTER F2-L2, so we know we're in a real dir; skipped silently for old backups without MANIFEST.sha256). Subshell-wrapped (F2-M1+F2-M2) so the `cd` is auto-scoped and temp files are cleaned up via `trap EXIT` even when `set -e` trips mid-block:**
+
+```bash
+# F3-L1: reject a MANIFEST.sha256 that is itself a symlink before using it.
+# [ -f ] follows symlinks; [ ! -L ] rejects them. Both guards together mean
+# "present AND not a symlink".
+if [ -f "{BACKUP_ROOT}/{chosen-name}/MANIFEST.sha256" ] \
+   && [ ! -L "{BACKUP_ROOT}/{chosen-name}/MANIFEST.sha256" ]; then
+  (
+    set -euo pipefail
+    tmp_manifest=$(mktemp) tmp_actual=$(mktemp)
+    trap 'rm -f "$tmp_manifest" "$tmp_actual"' EXIT
+    cd "{BACKUP_ROOT}/{chosen-name}"
+
+    # (1) Every file listed in MANIFEST must match its recorded hash (M4)
+    sha256sum -c --quiet MANIFEST.sha256 \
+      || { echo "ABORT: backup integrity check failed — files do not match recorded hashes"; exit 1; }
+
+    # (2) No files outside MANIFEST (F-M3 — detect ADDED files)
+    awk '{ sub(/^[^ ]+  /, ""); print }' MANIFEST.sha256 | sort > "$tmp_manifest"
+    find . -type f ! -name MANIFEST.sha256 | sort > "$tmp_actual"
+    if ! diff -q "$tmp_manifest" "$tmp_actual" > /dev/null; then
+      echo "ABORT: backup contains files not in MANIFEST — possible tampering. Diff:"
+      diff "$tmp_manifest" "$tmp_actual" || true
+      exit 1
+    fi
+  ) || exit 1
+fi
+```
+
+If either check fails, STOP — do not restore tampered files. User must investigate manually. (Old backups created before v0.4.1 have no manifest; integrity check is silently skipped for them, matching the v0.4.0 behavior they were created under.)
+
+**Trust bound:** the MANIFEST file itself is co-located with the backup. An attacker with full write access to the backup dir can modify both the manifest and the files and keep them consistent. The integrity check defends against accidental corruption and *partial* tampering (modified-or-added files where the attacker forgot to rewrite MANIFEST). It does not defend against a complete rewrite — that's what backup dir `chmod 700` is for.
+
+**F3-M2 — verification-time-vs-restore-time TOCTOU (acknowledged residual risk):** the integrity check above captures the backup's state at the moment of verification. Between that check and the `cp -a` below, an attacker who retains write access to `{BACKUP_ROOT}` can modify files in place — the cp then copies the tampered state. F2-L2's pre-everything symlink re-check (above) closes only the symlink-swap corner of this window, not contents modification. The TOCTOU is bounded by backup-dir `chmod 700` (only the owner can write), so this is effectively a self-attack or a post-compromise persistence primitive, not a primary attack vector. A proper fix (v0.5 roadmap) is a staging-area pattern: `cp backup → staging`, verify in the staging area, then `mv` staging into MEMORY_DIR atomically. For v0.4.1 this gap is left documented rather than redesigned.
+
+**F2-L2 (suspenders) + copy — MUST run in the same bash invocation.** Duplicates the pre-integrity check above. Belt+suspenders: the first F2-L2 closes the symlink-swap window between Step 6 validation and integrity verification; this second one closes the window between integrity verification and `cp -a`. Without this re-check, an attacker could swap `{BACKUP_ROOT}/{chosen-name}` for a symlink between integrity and cp, and `cp -a` would follow it (`-a` preserves symlink-ness of sources it encounters, but the top-level argument with a trailing `/` is dereferenced by cp). **The check and the cp are one bash block so the interval between them is microseconds in the same shell — do not split them into two Bash tool invocations.** All paths are quoted. `{chosen-name}` was already validated by the Step 6 block (matches `^memory\.backup-[0-9]{14}(-[0-9]+)?$`, no `/` or `..`, realpath is a direct non-symlink child of `{BACKUP_ROOT}`).
+
+```bash
+set -euo pipefail
+[ -L "{BACKUP_ROOT}/{chosen-name}" ] && { echo "ABORT (pre-cp TOCTOU): backup became a symlink after integrity check"; exit 1; }
+[ -d "{BACKUP_ROOT}/{chosen-name}" ] || { echo "ABORT: backup dir missing"; exit 1; }
 cp -a "{BACKUP_ROOT}/{chosen-name}/" "{MEMORY_DIR}/"
 ```
 
-Use `cp -a` (archive mode) so permissions/timestamps are preserved. All paths are quoted. `{chosen-name}` has already been validated by the Step 6 block — it matches `^memory\.backup-[0-9]{14}(-[0-9]+)?$`, contains no `/` or `..`, and its realpath was confirmed to be a direct non-symlink child of `{BACKUP_ROOT}`.
+`cp -a` (archive mode) preserves permissions, timestamps, and symlinks-as-symlinks for anything INSIDE the backup. Backup contents are part of the F3-M2 acknowledged residual (an attacker with write on `{BACKUP_ROOT}` can tamper in place between verification and cp); the symlink re-check above only closes the specific sub-case where the top-level directory entry itself is swapped for a symlink.
 
 Verify by comparing file counts AND print the resolved source and destination paths so the user can audit:
 
@@ -203,8 +259,7 @@ Print:
 {restore.safety_snapshot_note}   ← {safety} = path from Step 8 (omit this line if Step 8 skipped)
 ```
 
-<!-- TODO: localize L5 retention reminder -->
-Safety snapshots accumulate over time. Run `ls -d {MEMORY_DIR}.pre-restore-*` periodically to see them; delete ones older than ~2 weeks if nothing feels wrong.
+Print the localized `restore.safety_retention_hint` (substituting `{memory_dir}` with `{MEMORY_DIR}`).
 
 ---
 

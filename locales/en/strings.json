@@ -17,7 +17,7 @@
     "total_before_label": "Total before",
     "total_after_label": "Total after",
     "net_savings_label": "Net savings",
-    "review_instruction": "Review {table_path}, then run `/memory-apply` to execute it. The apply step creates a full backup before touching anything.",
+    "review_instruction": "Review {table_path}, then run `/mp:memory-apply {table_path}` to execute it. The apply step creates a full backup before touching anything.",
     "high_confidence_deletes_header": "High-confidence DELETE examples",
     "distill_examples_header": "DISTILL examples"
   },
@@ -78,7 +78,8 @@
     "triage_summary_header": "Proposed changes",
     "auto_apply_note": "Applying changes now. Backup will be created at {path}.",
     "done_header": "Clean complete",
-    "rollback_hint": "Rollback: /mp:restore  (or /mp:restore {backup_name})"
+    "rollback_hint": "Rollback: /mp:restore  (or /mp:restore {backup_name})",
+    "backup_pruning_hint": "Backups accumulate over time. Run `ls {backup_root}` periodically and delete old backups you no longer need."
   },
   "restore": {
     "header": "Available backups",
@@ -93,14 +94,15 @@
     "confirm_prompt": "Proceed? (yes/no)",
     "restore_complete": "Restored {backup} → {target}.",
     "safety_snapshot_note": "Pre-restore snapshot: {safety} (delete when you're sure)",
-    "cancelled": "Restore cancelled. No files changed."
+    "cancelled": "Restore cancelled. No files changed.",
+    "safety_retention_hint": "Safety snapshots accumulate over time. Run `ls -d {memory_dir}.pre-restore-*` periodically to see them; delete ones older than ~2 weeks if nothing feels wrong."
   },
   "errors": {
     "memory_dir_not_found": "Could not locate the auto-memory directory. Please supply the absolute path.",
-    "table_not_found": "Triage table not found at {path}. Run `/memory-triage` first, or pass the table path as an argument.",
+    "table_not_found": "Triage table not found at {path}. Run `/mp:memory-triage` first, then pass the printed table path as the first argument to `/mp:memory-apply`.",
     "backup_failed": "Backup creation failed. STOPPING. No files were modified.",
     "locale_missing": "Locale '{lang}' not found. Falling back to English. Submit a translation PR at https://github.com/marcelopaniza/mempenny/tree/main/locales",
-    "caveman_not_installed": "Caveman is not installed. MemPenny removes what shouldn't be there; caveman compresses what's left. To install:\n\n```\n/plugin marketplace add JuliusBrussee/caveman\n/plugin install caveman@caveman\n/reload-plugins\n```\n\nThen re-run `/mp:memory-compress --dir {dir}`.",
+    "caveman_not_installed_prose": "Caveman is not installed. MemPenny removes what shouldn't be there; caveman compresses what's left. To install, run the commands printed below, then re-run `/mp:memory-compress --dir {dir}`.",
     "backup_folder_invalid": "Backup folder path must be absolute and writable: {path}",
     "backup_not_found": "Backup not found: {name}"
   }
