@@ -48,13 +48,24 @@ Hold this as `{MEMORY_DIR}` for the rest of the flow.
 
 **Config file location:** `~/.claude/mempenny.config.json`
 
-**Schema:**
+**Schema (v2 — per memory directory):**
 
 ```json
 {
-  "backup_folder": "/absolute/path/to/backups",
-  "version": 1
+  "version": 2,
+  "memory_dirs": {
+    "/absolute/path/to/project-a/memory": "/absolute/path/to/project-a/memory.backups",
+    "/absolute/path/to/project-b/memory": "/absolute/path/to/project-b/memory.backups"
+  }
 }
+```
+
+One entry per memory directory. The key is the **realpath-normalized** absolute path to the memory dir (the same `{MEMORY_DIR}` value computed in Step 3); the value is the realpath-normalized backup folder chosen for that dir. The first run of `/mp:clean` against a given memory dir prompts for a backup folder and upserts an entry; subsequent runs against the same dir reuse it silently. Other memory dirs in the map are left untouched — no cross-contamination.
+
+**v1 legacy schema** (auto-migrated on read, see the migration block below):
+
+```json
+{ "version": 1, "backup_folder": "/absolute/path" }
 ```
 
 **Read logic:**
@@ -65,25 +76,64 @@ Hold this as `{MEMORY_DIR}` for the rest of the flow.
      echo "MEMPENNY_CONFIG_INVALID=symlink"
    fi
    ```
-   If the block above printed `MEMPENNY_CONFIG_INVALID=symlink`, skip straight to first-run setup below (do NOT Read the file; do NOT unlink the symlink here — let first-run setup's Write overwrite it atomically).
-2. Otherwise, use the Read tool on `~/.claude/mempenny.config.json`.
-3. If the file exists AND `--reconfigure` was NOT passed, run the following **config validation checks (M1 + C1)**. If ANY check fails, warn the user and fall through to first-run setup as if `--reconfigure` were passed:
-   - JSON must parse cleanly (if not → fall through).
-   - `backup_folder` must be a string (not a number, null, array, or object).
-   - `backup_folder` must match the regex `^/[A-Za-z0-9/_.\- ]{1,4096}$` — the same tight regex as first-run setup. This is the **C1 fix**: an earlier version accepted any `^/[^\x00\n]{1,4096}$`, which permitted `$`, `(`, `)`, backticks and other shell metacharacters. If the file was tampered to contain e.g. `"backup_folder": "/tmp/x$(cmd)"`, the subsequent `realpath "{backup_folder}"` call would trigger command substitution inside the double-quotes. Reject such paths at read time.
-   - Run `realpath "{backup_folder}"` via Bash (safe now that the regex has screened out shell metacharacters) and verify the resolved value still starts with `/` AND still matches the same tight regex (realpath can't introduce bad characters, but assert anyway — cheap).
-   - Verify the resolved path is writable: `mkdir -p "{BACKUP_ROOT}" && touch "{BACKUP_ROOT}/.mempenny-write-test" && rm "{BACKUP_ROOT}/.mempenny-write-test"`.
-   If all checks pass, use the **realpath-resolved** value as `{BACKUP_ROOT}` and skip to Step 5.
-4. Otherwise (validation failed OR the F-M2 symlink guard fired), run the **first-run setup** below.
+   If the block above printed `MEMPENNY_CONFIG_INVALID=symlink`, skip straight to first-run setup below (do NOT Read the file; do NOT unlink the symlink here — let first-run setup's Write overwrite it atomically). Treat the on-disk config as empty for upsert purposes.
 
-### First-run setup
+2. Otherwise, use the Read tool on `~/.claude/mempenny.config.json`. If the file does not exist, skip to first-run setup; treat the on-disk config as empty for upsert purposes.
 
-Show the user the intro using locale keys:
+3. Parse the file as JSON. If parsing fails, warn the user and fall through to first-run setup (overwrite with a clean v2 shape at write time).
+
+4. **Detect schema version.** If the top-level object contains `"version": 1` AND a `backup_folder` string (the legacy shape), run the **v1-to-v2 migration** block below before continuing with the validation checks in step 5.
+
+5. **Config validation (M1 + C1 — v2 shape).** Apply ALL of the following checks. If ANY check fails, warn the user and fall through to first-run setup as if `--reconfigure` were passed:
+   - Top-level must be a JSON object.
+   - `version` must be the integer `2`.
+   - `memory_dirs` must be an object (may be empty).
+   - Every key in `memory_dirs` must match the tight regex `^/[A-Za-z0-9/_.\- ]{1,4096}$` (absolute path, no shell metacharacters, max 4096 chars). The **C1 fix** from v0.4.1 applies to every key in the map, not just one `backup_folder` string: a tampered key like `/tmp/x$(cmd)` would fire command substitution on a subsequent `realpath "$key"` call. Reject such keys at read time.
+   - Every value in `memory_dirs` must be a string matching the same tight regex.
+   - No key or value may contain `..` as a path segment.
+
+6. **Per-memory-dir lookup.** Using `{MEMORY_DIR}` from Step 3 (already realpath'd, no trailing slash) as the lookup key:
+   - **Entry found AND `--reconfigure` was NOT passed** → validate the value further: run `realpath "{entry-value}"` via Bash (safe now that the regex has screened out shell metacharacters), verify the resolved value still starts with `/` and still matches the tight regex, then verify the resolved path is writable with the writability check below. If all of that passes, use the realpath-resolved value as `{BACKUP_ROOT}` and skip to Step 5 of this command. If per-entry validation fails, fall through to first-run setup for this memory dir only — **do not touch other entries in the map**.
+   - **Entry not found** → fall through to first-run setup (prompts only for this memory dir; other entries are left alone).
+   - **`--reconfigure` was passed** → ignore the existing entry for `{MEMORY_DIR}`, fall through to first-run setup. Other entries are left alone.
+
+**Writability check** (used both by per-entry validation and first-run setup):
+```bash
+mkdir -p "{BACKUP_ROOT}" && touch "{BACKUP_ROOT}/.mempenny-write-test" && rm "{BACKUP_ROOT}/.mempenny-write-test"
+```
+
+### v1-to-v2 migration
+
+When step 4's version detection found a v1 config (`"version": 1` + `backup_folder`):
+
+1. Apply the v0.4.1 validation gates to the legacy `backup_folder` value: it must be a string, match the tight regex `^/[A-Za-z0-9/_.\- ]{1,4096}$`, and `realpath "{backup_folder}"` must resolve to a path that still matches the tight regex. If any gate fails, treat the whole v1 config as unusable: warn the user, skip the migration, and fall through to first-run setup (the subsequent write will overwrite the bad v1 file with a clean v2 shape).
+2. If the v1 `backup_folder` passes all gates, build a v2 object in memory that carries the old path over for **the current memory dir only**:
+   ```json
+   {
+     "version": 2,
+     "memory_dirs": {
+       "{MEMORY_DIR}": "<realpath'd backup_folder from v1>"
+     }
+   }
+   ```
+   **Do not assume the v1 path applies to any other memory dir** the user may have — the whole point of v0.5 is to unmap the global-path assumption from v0.4.
+3. Persist the migrated object using the "Writing the config" block below (atomic write + `chmod 600`).
+4. After writing, print:
+   ```
+   Migrated ~/.claude/mempenny.config.json from v1 to v2 (per-memory-dir config).
+   Backup folder for {MEMORY_DIR} preserved: {BACKUP_ROOT}
+   Other memory dirs will be prompted for their own backup folder on first /mp:clean run.
+   ```
+5. Continue with step 5 of the read logic above, as if the file had been v2 all along.
+
+### First-run setup (for this memory directory only)
+
+Show the user the intro using locale keys. The intro mentions `{MEMORY_DIR}` explicitly so users with multiple projects see that this prompt is scoped to the current one:
 
 ```
 {clean.first_run_header}
 
-{clean.first_run_intro}
+{clean.first_run_intro}      ← substitute {memory_dir} with {MEMORY_DIR}
 {clean.first_run_default}    ← substitute {default} with {MEMORY_DIR}.backups/
 {clean.first_run_prompt}
 ```
@@ -111,20 +161,28 @@ Apply all of the following checks. If any fail, show `errors.backup_folder_inval
 5. **Writability:** `mkdir -p "{BACKUP_ROOT}" && touch "{BACKUP_ROOT}/.mempenny-write-test" && rm "{BACKUP_ROOT}/.mempenny-write-test"`.
 6. **Parent exists:** `[ -d "$(dirname "$resolved")" ]` — reject if the parent directory does not exist. Backup root must be created as a single new directory under an existing parent; MemPenny will not create a multi-level tree (prevents world-readable intermediate dirs when umask != 077).
 
-Once you have a valid `{BACKUP_ROOT}` (the realpath-resolved value):
+Once you have a valid `{BACKUP_ROOT}` (the realpath-resolved value), run the **Writing the config** block below, then confirm with `clean.config_saved` (substituting `{path}` with `~/.claude/mempenny.config.json`).
 
-1. Create the directory with `mkdir -p -m 700 "{BACKUP_ROOT}"` then `chmod 700 "{BACKUP_ROOT}"`. **(L1: restrict permissions)**
-2. Write the config file with the Write tool:
+### Writing the config (upsert — preserves other memory dirs)
 
-```json
-{
-  "backup_folder": "{BACKUP_ROOT}",
-  "version": 1
-}
-```
-
-3. After writing the config, run `chmod 600 ~/.claude/mempenny.config.json` via Bash. **(L1)**
-4. Confirm with `clean.config_saved` (substituting `{path}` with `~/.claude/mempenny.config.json`).
+1. Create the backup directory with `mkdir -p -m 700 "{BACKUP_ROOT}"` then `chmod 700 "{BACKUP_ROOT}"`. **(L1: restrict permissions)**
+2. Start from the **in-memory config object**:
+   - If a valid v2 config was loaded in step 5 above, use it as the starting point.
+   - If the file was missing, unparseable, a symlink (per the F-M2 guard), or failed top-level v2 validation, start from `{ "version": 2, "memory_dirs": {} }`.
+   - If the v1→v2 migration block is the caller, use the freshly-built v2 object from migration step 2.
+3. **Upsert the entry** for the current memory dir:
+   ```json
+   {
+     "version": 2,
+     "memory_dirs": {
+       "...other existing entries, unchanged...": "...",
+       "{MEMORY_DIR}": "{BACKUP_ROOT}"
+     }
+   }
+   ```
+   Every other key in `memory_dirs` must survive the write unchanged. Only the `{MEMORY_DIR}` entry is added or replaced.
+4. Write the full object to `~/.claude/mempenny.config.json` using the Write tool.
+5. After writing, run `chmod 600 ~/.claude/mempenny.config.json` via Bash. **(L1)**
 
 ## Step 5 — Show the run context
 

@@ -58,8 +58,27 @@ Before spawning the subagent, determine `{BACKUP_PATH}` as follows:
    fi
    ```
    If the block prints `MEMPENNY_CONFIG_INVALID=symlink`, treat the config as invalid/missing and skip to the legacy fallback in step 3. Do NOT Read the symlink. This prevents an attacker who can write to `~/.claude/` from redirecting the backup path via symlink swap.
-2. Otherwise, attempt to read `~/.claude/mempenny.config.json`. If it exists and passes the same M1+C1 validation as `/mp:clean` Step 4 (JSON parses, `backup_folder` is a string matching the **tight** regex `^/[A-Za-z0-9/_.\- ]{1,4096}$`, realpath resolves and starts with `/` and still matches the tight regex), set `{BACKUP_ROOT}` to the realpath'd `backup_folder` value. **C1 fix:** the regex was previously `^/[^\x00\n]{1,4096}$`, which allowed `$(…)` and backticks — a tampered config could achieve command substitution on the subsequent bash interpolation. Match clean.md's tight regex. Additionally verify the **parent** of `{BACKUP_ROOT}` exists: `[ -d "$(dirname "{BACKUP_ROOT}")" ]`. If the parent does not exist, treat the config as invalid and fall through to the legacy fallback (do not hard-abort — the intent is to keep things working). If the parent check passes, set `{BACKUP_PATH}` = `{BACKUP_ROOT}/memory.backup-$(date -u +%Y%m%d%H%M%S)-$$/`.
-3. If the symlink guard fired, OR the config does NOT exist, OR validation failed (including the parent-exists check above), fall back to the legacy sibling path with the same-day-overwrite bug fixed: `{BACKUP_PATH}` = `{MEMORY_DIR}.backup-$(date -u +%Y%m%d%H%M%S)-$$/`.
+2. Otherwise, attempt to read and parse `~/.claude/mempenny.config.json`. If it exists, parses as JSON, and passes the schema checks below, resolve `{BACKUP_ROOT}` from it. If any check fails (or the file does not exist), fall through to step 3.
+
+   **v2 shape** (`"version": 2` + `memory_dirs` object — the v0.5+ layout):
+   - Top-level must be an object.
+   - `version` must be the integer `2`.
+   - `memory_dirs` must be an object.
+   - Every key and value in `memory_dirs` must match the tight regex `^/[A-Za-z0-9/_.\- ]{1,4096}$` (C1: rejects shell metacharacters like `$(…)` and backticks before any bash interpolation).
+   - No key or value may contain `..` as a path segment.
+   - Look up `{MEMORY_DIR}` (realpath-normalized, no trailing slash) in `memory_dirs`. If no entry exists for this memory dir, treat the config as "no answer for this dir" and fall through to the legacy fallback in step 3. `/mp:memory-apply` does **not** prompt the user — that's `/mp:clean`'s job — so a missing entry simply means "sibling fallback" rather than "abort".
+   - If an entry exists, run `realpath "{entry-value}"` and verify the resolved path starts with `/`, still matches the tight regex, and that the **parent** of the resolved path exists (`[ -d "$(dirname "$resolved")" ]`). If any check fails, fall through to the legacy fallback.
+   - Set `{BACKUP_ROOT}` to the realpath-resolved value.
+
+   **v1 legacy shape** (`"version": 1` + top-level `backup_folder` string — the v0.4.x layout, before v0.5 introduced per-memory-dir scoping):
+   - `backup_folder` must be a string matching the tight regex above.
+   - `realpath "{backup_folder}"` must resolve to a path that still starts with `/` and still matches the tight regex.
+   - The **parent** of the resolved path must exist.
+   - If all checks pass, set `{BACKUP_ROOT}` to the realpath-resolved value. v0.4 semantics — a single global folder shared across all memory dirs — are preserved for read purposes so existing users aren't disrupted between running `/mp:clean` (which migrates to v2) and their next `/mp:memory-apply`. `/mp:memory-apply` does NOT write the config, so the v1→v2 migration never happens from this command.
+   - **C1 fix note:** v0.4.0 used the loose regex `^/[^\x00\n]{1,4096}$` which permitted command substitution in the subsequent realpath call. v0.4.1 tightened the regex; v0.5 keeps that tight regex and applies it to every entry in the v2 map (not just a single `backup_folder` string).
+
+   Once `{BACKUP_ROOT}` is set (from either shape), set `{BACKUP_PATH}` = `{BACKUP_ROOT}/memory.backup-$(date -u +%Y%m%d%H%M%S)-$$/`.
+3. If the symlink guard fired, OR the config does NOT exist, OR schema validation failed for both v1 and v2 shapes, OR the v2 map has no entry for the current `{MEMORY_DIR}`, fall back to the legacy sibling path with the same-day-overwrite bug fixed: `{BACKUP_PATH}` = `{MEMORY_DIR}.backup-$(date -u +%Y%m%d%H%M%S)-$$/`.
 
 After computing `{BACKUP_PATH}` (either from config or fallback), verify the two paths don't overlap in either direction (matching `/mp:clean`'s check — previously apply only checked one direction):
 ```bash
@@ -69,8 +88,9 @@ case "{MEMORY_DIR}"  in "{BACKUP_PATH}"/*) echo "ABORT: memory dir inside backup
 This catches any path (including the fallback sibling case) that would cause a recursive backup or a clobbered source.
 
 Announce to the user which path was chosen before starting the backup:
-- Config found: `Backup destination (from config): {BACKUP_PATH}`
-- Fallback: `Backup destination (legacy sibling, no config found): {BACKUP_PATH}`
+- v2 config entry found for this memory dir: `Backup destination (from config, per-dir): {BACKUP_PATH}`
+- v1 legacy config found: `Backup destination (from v1 config, global): {BACKUP_PATH}`
+- Fallback: `Backup destination (legacy sibling, no config entry for this memory dir): {BACKUP_PATH}`
 
 Ensure the parent directory exists: `mkdir -p -m 700 "$(dirname "{BACKUP_PATH}")"`.
 

@@ -2,6 +2,48 @@
 
 All notable changes to MemPenny are documented here. This project follows [semantic versioning](https://semver.org/).
 
+## [0.5.0] — 2026-04-18
+
+Per-memory-dir backup config. Fixes a usability bug where `/mp:clean` prompted for a backup folder only on the very first run globally, then silently reused that one folder for every other project on the same machine — with no way to tell which backup came from which project.
+
+### Changed
+
+- **Config schema v2 (breaking, auto-migrated).** `~/.claude/mempenny.config.json` was a single `backup_folder` string shared across all memory dirs (v1). v0.5 replaces it with a `memory_dirs` object that maps each memory directory to its own backup folder:
+
+  ```json
+  {
+    "version": 2,
+    "memory_dirs": {
+      "/abs/path/to/project-a/memory": "/abs/path/to/project-a/memory.backups",
+      "/abs/path/to/project-b/memory": "/abs/path/to/project-b/memory.backups"
+    }
+  }
+  ```
+
+  First `/mp:clean` run in each memory directory prompts for a backup folder and adds an entry. Subsequent runs against the same directory are one command. `--reconfigure` now re-prompts **only for the current memory directory**, leaving other entries untouched.
+
+- **`/mp:clean` auto-migrates v1 configs to v2 on first run.** The v0.4.x `backup_folder` value is preserved for the current memory directory only. Any other project you run `/mp:clean` in afterward gets its own fresh prompt. A one-liner is printed explaining the migration. `/mp:restore` and `/mp:memory-apply` read v1 configs (preserving the v0.4 "single global folder" behavior) without writing — only `/mp:clean` migrates.
+
+- **`/mp:restore` scopes backup listing to the current memory dir.** Previously all backups from all projects would have commingled under one folder with colliding names; the v2 layout naturally confines the listing to the current project. If you run `/mp:restore` against a memory dir with no v2 entry (and no v1 config), you now see `restore.no_config_for_dir` with the directory path, and are directed to run `/mp:clean` first.
+
+- **`/mp:memory-apply` looks up the per-dir entry; falls back to sibling path when none exists.** A user who hasn't run `/mp:clean` yet still gets the legacy sibling-directory backup — unchanged low-friction path. The only difference is that the config entry, if present, is now keyed by memory directory.
+
+### Added
+
+- `restore.no_config_for_dir` locale key (en / es / pt-BR) surfaced when `/mp:restore` is run against a memory dir with no backup-folder entry yet.
+- README section "Config file" documenting the v2 shape, the first-run-per-directory flow, and the v1→v2 migration.
+
+### Migration
+
+Users upgrading from v0.4.x: **no manual action required.** The first `/mp:clean` you run under v0.5 migrates `~/.claude/mempenny.config.json` in place and preserves your old backup folder for the memory dir you ran it from. Any other project on the same machine will prompt on its first `/mp:clean` run. Existing backups continue to restore normally — the migration only changes which memory dirs are bound to the old path, not the path itself.
+
+If you'd previously set the backup folder to a location that turned out to be wrong for most projects (e.g., a sandbox path under `/tmp`), the migration inherits it for one memory dir; the rest get fresh prompts. Run `/mp:clean --reconfigure` to re-pick the folder for the currently-bound dir, or hand-edit the config to remove the stale entry.
+
+### Notes
+
+- Schema version bumps 1 → 2. Config files written by v0.5 cannot be read by v0.4.1 or earlier (v0.4.x's validation rejects any top-level key other than `backup_folder` + `version`).
+- Bug this fixes: a v0.4.x user who ran `/mp:clean` in one project would never be prompted again, so every other project on the same machine silently wrote backups into the first project's folder with colliding names. `/mp:restore` listed them intermingled with no way to tell which came from which.
+
 ## [0.4.1] — 2026-04-18
 
 Security-hardening release. No new features. Every finding from the full code-review + pentest pass against v0.4.0 is addressed. Safe to upgrade in place.

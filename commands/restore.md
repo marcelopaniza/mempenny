@@ -21,30 +21,7 @@ Before constructing the locale path, validate that `<lang>` matches the regex `^
 
 Read `${CLAUDE_PLUGIN_ROOT}/locales/<lang>/strings.json`. Fall back to `en` if the file is missing (warn with `errors.locale_missing`). You need `restore.*` and `errors.*` keys.
 
-## Step 3 — Read the config
-
-**F-M2 + F2-M3 — symlink guard first** (stdout sentinel):
-```bash
-if [ -L ~/.claude/mempenny.config.json ]; then
-  echo "MEMPENNY_CONFIG_INVALID=symlink"
-fi
-```
-If the block prints `MEMPENNY_CONFIG_INVALID=symlink`, STOP with `restore.no_config`. A symlink'd config is suspicious (an attacker may have redirected it); refuse to restore anything until the user investigates. Unlike `/mp:clean` (which falls through to first-run setup), `/mp:restore` has no safe fallback — aborting is correct.
-
-Otherwise, Read `~/.claude/mempenny.config.json`. It must contain `backup_folder`.
-
-If the file does not exist, print `restore.no_config` and STOP. The user has never run `/mp:clean`, so there's nothing to restore.
-
-**Config validation (M1 + C1 — parallel to clean.md Step 4):** If the file exists, run ALL of the following checks. If ANY check fails, print `restore.no_config` and STOP — do not continue with an untrustworthy path:
-
-1. JSON must parse cleanly.
-2. `backup_folder` must be a string (not a number, null, array, or object).
-3. `backup_folder` must match the regex `^/[A-Za-z0-9/_.\- ]{1,4096}$` — the same tight regex as `--dir` validation. **C1 fix:** an earlier version used `^/[^\x00\n]{1,4096}$` which permitted shell metacharacters; a tampered config like `"backup_folder": "/tmp/x$(cmd)"` would have fired command substitution during the subsequent `realpath` call (double-quotes don't prevent `$(…)`). Reject such paths before any bash interpolation.
-4. Run `realpath "{backup_folder}"` via Bash (safe now that the regex is tight) and verify the resolved value still starts with `/` AND still matches the same tight regex.
-
-Hold the **realpath-resolved** value as `{BACKUP_ROOT}`.
-
-## Step 4 — Locate the target memory directory
+## Step 3 — Locate the target memory directory
 
 **If `--dir <path>` was passed**, apply the following validation before using it. On any failure, print `errors.memory_dir_not_found` and STOP:
 
@@ -60,7 +37,43 @@ If all checks pass, use the resolved path as `{MEMORY_DIR}`.
 
 **Regardless of whether the path came from `--dir` or auto-detection, apply checks 1-3 of the validation block above before using it as `{MEMORY_DIR}` (H5).** For restore, check 4 is conditional (directory may not exist yet), but checks 1-3 (regex, realpath, depth) must pass. If validation fails on the auto-detected path, print `errors.memory_dir_not_found` and STOP.
 
-Hold as `{MEMORY_DIR}`. It's OK if it doesn't exist yet — restore will create it.
+Hold as `{MEMORY_DIR}` (realpath-normalized, no trailing slash). It's OK if it doesn't exist yet — restore will create it.
+
+## Step 4 — Read the config and look up the backup folder for this memory directory
+
+**F-M2 + F2-M3 — symlink guard first** (stdout sentinel):
+```bash
+if [ -L ~/.claude/mempenny.config.json ]; then
+  echo "MEMPENNY_CONFIG_INVALID=symlink"
+fi
+```
+If the block prints `MEMPENNY_CONFIG_INVALID=symlink`, STOP with `restore.no_config`. A symlink'd config is suspicious (an attacker may have redirected it); refuse to restore anything until the user investigates. Unlike `/mp:clean` (which falls through to first-run setup), `/mp:restore` has no safe fallback — aborting is correct.
+
+Otherwise, Read `~/.claude/mempenny.config.json`. If the file does not exist, print `restore.no_config` and STOP — the user has never run `/mp:clean`, so there's nothing to restore.
+
+Parse as JSON. If parsing fails, print `restore.no_config` and STOP.
+
+**Detect schema version and resolve `{BACKUP_ROOT}` for the current `{MEMORY_DIR}`:**
+
+- **v1 legacy shape** (`"version": 1` + top-level `backup_folder` string): v0.4 stored a single global backup folder shared across all memory dirs. To preserve the ability to restore v0.4-era backups, treat the global `backup_folder` as applicable to the current memory dir. Apply the v0.4.1 validation gates:
+  1. `backup_folder` must be a string (not a number, null, array, or object).
+  2. `backup_folder` must match the tight regex `^/[A-Za-z0-9/_.\- ]{1,4096}$` — the same tight regex as `--dir` validation. **C1 fix:** an earlier version used `^/[^\x00\n]{1,4096}$` which permitted shell metacharacters; a tampered config like `"backup_folder": "/tmp/x$(cmd)"` would have fired command substitution during the subsequent `realpath` call (double-quotes don't prevent `$(…)`). Reject such paths before any bash interpolation.
+  3. Run `realpath "{backup_folder}"` via Bash (safe now that the regex is tight) and verify the resolved value still starts with `/` AND still matches the tight regex.
+
+  If any gate fails, print `restore.no_config` and STOP. Otherwise, hold the **realpath-resolved** value as `{BACKUP_ROOT}` and skip to Step 5. `/mp:restore` does **not** auto-migrate a v1 config to v2 — only `/mp:clean` writes the config. Restore is read-only.
+
+- **v2 shape** (`"version": 2` + `memory_dirs` object): validate and look up per memory dir:
+  1. Top-level must be a JSON object.
+  2. `version` must be the integer `2`.
+  3. `memory_dirs` must be an object.
+  4. Every key and value in `memory_dirs` must match the tight regex `^/[A-Za-z0-9/_.\- ]{1,4096}$` (applies C1 to every entry in the map, not just one string).
+  5. No key or value may contain `..` as a path segment.
+  6. Look up `{MEMORY_DIR}` (realpath-normalized from Step 3, no trailing slash) in `memory_dirs`. If no entry exists for this memory dir, print `restore.no_config_for_dir` (substituting `{dir}` with `{MEMORY_DIR}`) and STOP. The user has never run `/mp:clean` against this memory dir; there's no backup folder to restore from.
+  7. Run `realpath` on the looked-up value and verify the resolved value still starts with `/` and still matches the tight regex. If any check fails, print `restore.no_config` and STOP.
+
+  Hold the **realpath-resolved** value as `{BACKUP_ROOT}`.
+
+- **Any other shape** (unknown version, missing required fields, both `version: 1` without `backup_folder`, etc.): print `restore.no_config` and STOP.
 
 ## Step 5 — List available backups
 
