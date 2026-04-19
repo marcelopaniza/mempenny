@@ -21,7 +21,7 @@ Cheapest action to most expensive. Always pick the cheapest one that applies.
 
 3. **DISTILL** — replace prose narrative with 1-3 sentences of forward-looking truth. The narrative gets dropped; only what future-Claude needs to know remains. This is the most common action on aging memory files.
 
-4. **COMPRESS** — out of scope for memory-hygiene. This is [caveman](https://github.com/JuliusBrussee/caveman)'s job. Compression runs on prose that's already been through the triage above — it shrinks what's left, but doesn't decide what should be there. Run MemPenny first, then compress survivors if you want additional savings.
+4. **COMPRESS** — out of scope for memory-hygiene. This is [terse-md](https://github.com/marcelopaniza/terse-md)'s job (optional; installed separately). Compression runs on prose that's already been through the triage above — it shrinks what's left, but doesn't decide what should be there. Run MemPenny first, then compress survivors if you want additional savings.
 
 5. **KEEP** — active state, architecture reference, recurring rule, or content where the prose is already tight. The default action when none of the above apply.
 

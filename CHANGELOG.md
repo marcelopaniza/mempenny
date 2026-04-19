@@ -2,6 +2,30 @@
 
 All notable changes to MemPenny are documented here. This project follows [semantic versioning](https://semver.org/).
 
+## [0.5.1] — 2026-04-19
+
+Swap the optional downstream compressor from caveman to [terse-md](https://github.com/marcelopaniza/terse-md). MemPenny's own behavior (triage: delete / archive / distill) is unchanged. Users who had caveman installed and relied on `/mp:memory-compress` should install terse-md to keep a compression step in the pipeline; users who never installed caveman see no behavioral difference, just a different install hint if they invoke compress.
+
+### Changed
+
+- **`/mp:memory-compress` now routes to `/terse-md:run` instead of `caveman:compress`.** Detection checks for `terse-md:run` in the skills list. If installed, MemPenny invokes it with `--all <memory-dir>` (plus pass-through `--dry-run` / `--include-all` if provided). If not installed, MemPenny prints the terse-md install commands and stops without modifying anything. Note: terse-md has a different compression model than caveman — it writes `.approved.yaml` siblings on explicit per-file approval rather than overwriting sources with `.original.md` backups. MemPenny does not create a separate backup for this command; terse-md never overwrites source files.
+
+- **`/mp:clean` auto-chains to terse-md at the end of a successful clean, if installed.** A new Step 11 detects `terse-md:run`; if present, MemPenny hands off with a single `/terse-md:run --all <memory-dir>` invocation. If terse-md is not installed, MemPenny prints an honest one-paragraph note saying compression is optional and pointing at the terse-md install command. No nagging, no retries — skipping the step is fine.
+
+- **Locale key rename:** `errors.caveman_not_installed_prose` → `errors.terse_md_not_installed_prose`. Two new keys added: `apply.terse_md_handoff_note` and `apply.terse_md_not_installed_hint`. The `compress.*` locale section (caveman-specific summary labels) was removed — MemPenny no longer prints its own compression report; terse-md prints its own.
+
+- **README restructured into Default and Advanced sections.** Default: one command (`/mp:clean`) with end-to-end description. Advanced: manual phase commands, flags, config file shape, rollback recipes, localization, strategy hierarchy.
+
+### Removed
+
+- Caveman references throughout the docs, commands, and locales. MemPenny and caveman remain cleanly independent at the plugin level — there's just no built-in pointer anymore.
+
+### Notes for existing users
+
+- No config migration needed — the `~/.claude/mempenny.config.json` schema did not change in this release.
+- If you had caveman installed and were using `/mp:memory-compress`, the command still runs but will tell you terse-md isn't installed. Install terse-md to continue having a compression step.
+- If you used neither, nothing changes in practice.
+
 ## [0.5.0] — 2026-04-18
 
 Per-memory-dir backup config. Fixes a usability bug where `/mp:clean` prompted for a backup folder only on the very first run globally, then silently reused that one folder for every other project on the same machine — with no way to tell which backup came from which project.

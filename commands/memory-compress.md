@@ -1,47 +1,50 @@
 ---
-description: Compress prose in every memory file in a directory via caveman. Runs caveman:compress on each surviving .md file, shrinks prose without touching code, commands, URLs, or version numbers. Requires caveman installed.
-argument-hint: [--dir <path>] [--only <glob>] [--lang <code>]
+description: Route to terse-md for further compression of memory files. Detects whether terse-md is installed; invokes it on the memory directory if so, otherwise prints an honest install hint and stops.
+argument-hint: [--dir <path>] [--lang <code>] [--dry-run] [--include-all]
 ---
 
-Compress every `.md` file in a memory directory by invoking the `caveman:compress` skill on each file individually. Caveman preserves all technical substance (code, URLs, paths, commands, version numbers, frontmatter) and shrinks only the prose. Each file is backed up by caveman as `FILE.original.md` before being overwritten.
-
-This is the final step after `/mp:memory-triage` + `/mp:memory-apply`. Run it on the same directory to compress the surviving KEEP + DISTILL files.
+Hand off to the `/terse-md:run` skill to compress the memory directory. MemPenny does nothing to the files here — terse-md owns the entire pipeline (normalize → compress → validate → decompress → per-file review → optional `.approved.yaml` write).
 
 ## Step 1 — Parse arguments
 
 The user invoked this command with: $ARGUMENTS
 
-Parse three optional arguments from `$ARGUMENTS`:
+Parse optional arguments:
 
-- `--dir <path>` — absolute path to the memory directory. If set, use verbatim; otherwise auto-detect the current project's memory dir (same logic as `/mp:memory-triage`).
-- `--only <glob>` — scope filter. Multiple globs comma-separated. **L2 validation:** must match `^[A-Za-z0-9_.\-*?\[\]{},]{1,256}$` — no `/`, no space, no shell metacharacters. Flows into `find` commands in Step 6.
-- `--lang <code>` — output language for user-visible labels. If not passed, check `MEMPENNY_LOCALE`. Default `en`.
+- `--dir <path>` — absolute path to the memory directory. If set, use verbatim; otherwise auto-detect the current project's memory dir.
+- `--lang <code>` — language for any MemPenny-side message (install hint, error). If not passed, check `MEMPENNY_LOCALE`. Default `en`. Terse-md itself is English-only; this flag only affects MemPenny's own strings.
+- `--dry-run` — pass through to terse-md unchanged.
+- `--include-all` — pass through to terse-md unchanged.
+
+Any other tokens are rejected: print `Usage: /mp:memory-compress [--dir <path>] [--lang <code>] [--dry-run] [--include-all]` and STOP.
 
 ## Step 2 — Load locale strings
 
 **2a — Validate `<lang>` before reading (H2: path traversal guard)**
 
-Before constructing the locale path, validate that `<lang>` matches the regex `^[a-zA-Z]{2,3}(-[A-Za-z0-9]{2,8})?$`. If it does not match, treat it exactly like a missing locale: silently reset `<lang>` to `en` and warn with `errors.locale_missing`.
+Before constructing the locale path, validate that `<lang>` matches the regex `^[a-zA-Z]{2,3}(-[A-Za-z0-9]{2,8})?$`. If it does not match, silently reset `<lang>` to `en` and warn with `errors.locale_missing`.
 
-Read `${CLAUDE_PLUGIN_ROOT}/locales/<lang>/strings.json`. Fall back to `en` and warn with `errors.locale_missing` if missing. You need `compress.*` labels for the summary and `errors.caveman_not_installed_prose` for the fallback message wrapper (Step 3 hard-codes the install command block itself — H4 fix: locale files no longer carry executable commands, so a malicious translation PR can't swap them).
+Read `${CLAUDE_PLUGIN_ROOT}/locales/<lang>/strings.json`. Fall back to `en` and warn with `errors.locale_missing` if missing. You need `errors.terse_md_not_installed_prose` and `errors.memory_dir_not_found`.
 
-## Step 3 — Verify caveman is installed
+## Step 3 — Verify terse-md is installed
 
-**Check the currently-available skills list** (it's in your system context at the top of every conversation). Look for a skill named `caveman:compress` — the skill responsible for compressing natural language memory files.
+**Check the currently-available skills list** (it's in your system context at the top of every conversation). Look for a skill named `terse-md:run`.
 
-**If `caveman:compress` is NOT in your skills list:**
+**If `terse-md:run` is NOT in your skills list:**
 
-Print the localized `errors.caveman_not_installed_prose` message (substituting `{dir}` with the target directory), then print the install command block below **verbatim from this file** — do NOT read it from the locale. H4 fix: a translation PR should never be able to swap the commands the user copy-pastes into their shell. Do NOT modify any files. STOP.
+Print the localized `errors.terse_md_not_installed_prose` message (substituting `{dir}` with the target directory), then print the install command block below **verbatim from this file** — do NOT read it from the locale. A translation PR must never be able to swap the commands the user copy-pastes into their shell.
 
 **The install command block (print this exact fenced block after the localized prose):**
 
 ```
-/plugin marketplace add JuliusBrussee/caveman
-/plugin install caveman@caveman
+/plugin marketplace add marcelopaniza/terse-md
+/plugin install terse-md@marcelopaniza-terse-md
 /reload-plugins
 ```
 
-**If `caveman:compress` IS in your skills list**, proceed to Step 4.
+Do NOT modify any files. STOP.
+
+**If `terse-md:run` IS in your skills list**, proceed to Step 4.
 
 ## Step 4 — Locate the memory directory
 
@@ -53,97 +56,44 @@ Print the localized `errors.caveman_not_installed_prose` message (substituting `
 3. Depth: reject if the realpath equals `/` or has fewer than 2 path components.
 4. Existence + not-a-symlink: `[ -d "$resolved" ] && [ ! -L "$resolved" ]`.
 
-If all checks pass, use the resolved path as `{MEMORY_DIR}`. Verify it contains at least one `.md` file before continuing.
+If all checks pass, use the resolved path as `{MEMORY_DIR}`.
 
 **Otherwise**, auto-detect `~/.claude/projects/<project-id>/memory/` from the current project. If uncertain, ask the user (use `errors.memory_dir_not_found`).
 
-**Regardless of whether the path came from `--dir` or auto-detection, apply the 4-check validation block above before using it as `{MEMORY_DIR}`.** If validation fails on the auto-detected path, print `errors.memory_dir_not_found` and STOP.
+**Regardless of whether the path came from `--dir` or auto-detection, apply the 4-check validation block above before using it as `{MEMORY_DIR}` (H5).** If validation fails on the auto-detected path, print `errors.memory_dir_not_found` and STOP.
 
-## Step 5 — Determine scope
+## Step 5 — Path-compatibility precheck
 
-**Default scope:** every `.md` file directly under the memory directory, **excluding**:
-- `MEMORY.md` (never compress the index — its format matters for auto-discovery)
-- `*.original.md` (caveman's own backups — compressing them would double-compress)
-- `*.backup.md`, `*.bak.md` (other common backup patterns)
-- Anything under `archive/` (those are by definition out-of-active-load; compressing is wasted effort)
+Terse-md tokenizes its `args` string on whitespace and has no quoting or escape handling. If `{MEMORY_DIR}` contains any space character, MemPenny cannot safely hand off — a path like `/home/u/my projects/memory` would be mis-parsed by terse-md. Check:
 
-If `--only <glob>` was passed, further narrow to that pattern. Multiple globs comma-separated.
-
-Use the Glob tool to list matching files. If zero files match, print a friendly "nothing to compress" message using locale labels and STOP.
-
-## Step 6 — Record pre-compression sizes
-
-Before invoking caveman on any file, record the total byte size of all files in scope. You'll need this for the final savings report.
-
-Use Bash: `find <dir> -maxdepth 1 -type f -name '*.md' <exclusions> | xargs du -b | awk '{s+=$1} END {print s}'`
-
-Or iterate file-by-file with Read and count lengths. Either works — pick whichever is cleaner.
-
-## Step 7 — Invoke caveman:compress on each file
-
-For each file in scope, invoke the `caveman:compress` skill via the Skill tool with the **absolute path** to the file as its argument. Example:
-
-```
-Skill(skill: "caveman:compress", args: "/home/user/.claude/projects/-some-project/memory/project_foo.md")
+```bash
+case "{MEMORY_DIR}" in *" "*) echo HAS_SPACE;; esac
 ```
 
-Caveman will:
-1. Detect file type (no tokens)
-2. Back up the file to `<filename>.original.md`
-3. Compress the prose, preserving all code/URLs/paths/commands/frontmatter
-4. Overwrite the original file with compressed content
-5. Return a short status
+If this prints `HAS_SPACE`, print the localized `errors.terse_md_path_has_space` line (substituting `{dir}` with `{MEMORY_DIR}`) and STOP. Do not invoke terse-md.
 
-**Track per-file outcome:** success or failure (with reason). Caveman handles its own backup, so you do NOT need to create a separate backup — each file gets its own `.original.md` alongside.
+## Step 6 — Invoke terse-md
 
-If ≥20% of files fail in a row, STOP after that batch and report. This probably means caveman is broken, not that individual files are bad.
+Invoke the `terse-md:run` skill via the Skill tool. Build the `args` string by concatenating, in this exact order and with single spaces between tokens:
 
-## Step 8 — Record post-compression sizes and report
+1. Literal `--all`
+2. `{MEMORY_DIR}` (the validated realpath-resolved value — precheck above guarantees no whitespace)
+3. If `--dry-run` was passed in Step 1, the literal `--dry-run`
+4. If `--include-all` was passed in Step 1, the literal `--include-all`
 
-After all invocations complete, measure total bytes of the same files (now compressed) and compute:
+**Never interpolate raw `$ARGUMENTS` into the args string** — only the four known tokens above. This keeps the tight regex validation from Step 4 load-bearing and prevents any other user-supplied token from reaching terse-md.
 
-- `files_compressed` / `files_total`
-- `bytes_before` (from Step 6)
-- `bytes_after` (measured now)
-- `net_savings` = `bytes_before - bytes_after`
-- `ratio` = `bytes_after / bytes_before` as a percentage
-
-Print a summary using localized `compress.*` labels. Template (en):
+Example call for `/mp:memory-compress --dir /home/u/.claude/projects/foo/memory --dry-run`:
 
 ```
-{header}. {files_label}: {files_compressed}/{files_total} {compressed_label}
-
-{bytes_header}:
-  {before_label}:  X B
-  {after_label}:   Y B
-  {savings_label}: Z B ({ratio}%)
-
-{backup_note}
+Skill(skill: "terse-md:run", args: "--all /home/u/.claude/projects/foo/memory --dry-run")
 ```
 
-Where `{backup_note}` is the locale's compress.backup_note — a short reminder that caveman created `<file>.original.md` for each compressed file, and rollback is `mv <file>.original.md <file>` per file.
-
-If any files failed, list them in a `{warnings_header}` block with the per-file failure reason.
-
-## Step 9 — Rollback instructions
-
-End with a localized rollback tip in a code block so the user can copy-paste. Each file is independently reversible by moving its `.original.md` sibling back into place:
-
-```
-# Rollback a single file
-mv <file>.original.md <file>
-
-# Rollback all files in a dir
-for f in <dir>/*.original.md; do mv "$f" "${f%.original.md}.md"; done
-```
-
----
+Terse-md handles all user prompts, progress output, diff display, per-file review, and writes. MemPenny does not print a summary — terse-md already prints its own.
 
 ## Constraints
 
-- **Never compress `MEMORY.md`** — its markdown structure is parsed by Claude Code for auto-discovery. Caveman-style compression could break the parse.
-- **Never compress `*.original.md`** — those are caveman's own backups. Double-compression produces nonsense.
-- **Never compress files under `archive/`** — archived files are by definition out of the auto-load path; compression is wasted effort.
-- **Do not modify `.claude-plugin/`, `.git/`, or any non-memory path** — only operate inside `{MEMORY_DIR}`.
-- **Respect caveman's own boundaries** — caveman refuses to touch `.py`, `.js`, `.json`, `.yaml`, etc. If a user somehow puts a `.js` file in their memory dir (unusual), caveman will skip it and return a non-error status; count that as a "skipped" outcome, not a failure.
-- If the user Ctrl-Cs mid-batch, some files will already be compressed and others not. That's fine — the command is idempotent per-file (a second run on a compressed file just re-compresses minimally, and the `.original.md` backup chain protects them).
+- **MemPenny does not modify any file in this command.** Every write is terse-md's.
+- **MemPenny does not create backups here.** Terse-md never overwrites sources — it only writes `.approved.yaml` siblings on explicit approval, so no backup is needed.
+- **Do not pass flags other than `--all <path>`, `--dry-run`, `--include-all`.** Anything else is either not supported by terse-md or violates MemPenny's input allowlist.
+- **Do not read or forward `$ARGUMENTS` verbatim to terse-md** — only the parsed, validated tokens.

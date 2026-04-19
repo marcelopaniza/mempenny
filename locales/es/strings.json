@@ -36,23 +36,10 @@
     "rollback_comment": "Revertir si algo parece incorrecto",
     "warnings_header": "Advertencias",
     "next_step_header": "Siguiente paso",
-    "next_step_suggestion": "Ejecuta `/mp:memory-compress --dir {dir}` para comprimir la prosa superviviente con caveman (si está instalado). MemPenny elimina lo que no debería estar; caveman comprime lo que queda."
-  },
-  "compress": {
-    "header": "Compresión completada",
-    "files_label": "Archivos",
-    "compressed_label": "comprimidos",
-    "of_label": "de",
-    "bytes_header": "Bytes",
-    "before_label": "Antes",
-    "after_label": "Después",
-    "savings_label": "Ahorro neto",
-    "ratio_label": "Ratio promedio",
-    "nothing_to_do": "Ningún archivo coincide con el alcance — nada que comprimir.",
-    "backup_note": "Caveman creó `FILE.original.md` para cada archivo comprimido. Consérvalos ~2 semanas; elimínalos solo si nada parece incorrecto.",
-    "rollback_comment_single": "Revertir un solo archivo",
-    "rollback_comment_all": "Revertir todos los archivos comprimidos en este directorio",
-    "warnings_header": "Advertencias"
+    "next_step_suggestion": "Ejecuta `/mp:memory-compress --dir {dir}` para comprimir la prosa superviviente con terse-md (si está instalado). MemPenny elimina lo que no debería estar; terse-md comprime lo que queda.",
+    "terse_md_handoff_note": "terse-md está instalado. Pasando el control a `/terse-md:run --all {dir}` para comprimir los archivos supervivientes. terse-md ejecuta su propia revisión y nunca sobrescribe los originales — solo escribe archivos `.approved.yaml` hermanos tras aprobación explícita.",
+    "terse_md_not_installed_hint": "terse-md no está instalado. Tu memoria ya está triada. Si quieres compresión adicional (Markdown → YAML validado con revisión ida y vuelta), instala terse-md usando los comandos mostrados abajo y ejecuta `/mp:memory-compress` cuando quieras. Saltarse este paso está bien — no falta nada.",
+    "terse_md_path_has_space_note": "El directorio de memoria {dir} contiene un espacio. Saltando la entrega a terse-md — terse-md tokeniza sus argumentos por espacios sin comillas, y una ruta con espacios sería mal interpretada. El triaje y la compresión (a nivel de prosa) se completaron. Para habilitar la entrega, usa una ruta sin espacios o ejecuta terse-md manualmente tras renombrar."
   },
   "distill": {
     "file_label": "Archivo",
@@ -103,7 +90,8 @@
     "table_not_found": "Tabla de triaje no encontrada en {path}. Ejecuta `/mp:memory-triage` primero, luego pasa la ruta de la tabla impresa como primer argumento a `/mp:memory-apply`.",
     "backup_failed": "Fallo al crear el respaldo. DETENIENDO. No se modificó ningún archivo.",
     "locale_missing": "Locale '{lang}' no encontrado. Volviendo al inglés. Envía un PR de traducción en https://github.com/marcelopaniza/mempenny/tree/main/locales",
-    "caveman_not_installed_prose": "Caveman no está instalado. MemPenny elimina lo que no debería estar; caveman comprime lo que queda. Para instalar, ejecuta los comandos mostrados abajo, luego ejecuta de nuevo `/mp:memory-compress --dir {dir}`.",
+    "terse_md_not_installed_prose": "terse-md no está instalado. MemPenny se detiene aquí — no escribirá nada durante la compresión. Para instalar terse-md, ejecuta los comandos mostrados abajo, luego ejecuta de nuevo `/mp:memory-compress --dir {dir}`.",
+    "terse_md_path_has_space": "El directorio de memoria {dir} contiene un espacio. terse-md tokeniza sus argumentos por espacios sin comillas y malinterpretaría la ruta. Rechazando la invocación. Usa una ruta sin espacios o ejecuta terse-md manualmente tras renombrar.",
     "backup_folder_invalid": "La ruta de la carpeta de respaldo debe ser absoluta y con permisos de escritura: {path}",
     "backup_not_found": "Respaldo no encontrado: {name}"
   }

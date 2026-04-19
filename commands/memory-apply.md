@@ -141,10 +141,10 @@ After the rollback block, print the localized **next-step suggestion** from `app
 ```
 **Next step**
 
-Run `/mp:memory-compress --dir <MEMORY_DIR>` to compress the surviving prose with caveman (if installed). MemPenny removes what shouldn't be there; caveman shrinks what's left.
+Run `/mp:memory-compress --dir <MEMORY_DIR>` to compress the surviving prose with terse-md (if installed). MemPenny removes what shouldn't be there; terse-md shrinks what's left.
 ```
 
-This is a suggestion, not an automatic action. The user runs compress when ready. If they don't have caveman, `/mp:memory-compress` will detect that and print install instructions rather than modifying anything.
+This is a suggestion, not an automatic action. The user runs compress when ready. If they don't have terse-md, `/mp:memory-compress` will detect that and print install instructions rather than modifying anything.
 
 ---
 

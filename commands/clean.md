@@ -291,7 +291,43 @@ Do NOT print the long `rm -rf … && mv …` rollback snippet — that's what `/
 
 Then print the localized `clean.backup_pruning_hint` (substituting `{backup_root}` with `{BACKUP_ROOT}`).
 
-Optionally, if `caveman:compress` is in the skills list, end with the next-step suggestion from `apply.next_step_suggestion` (substitute `{dir}` with `{MEMORY_DIR}`). If caveman is not installed, skip the suggestion silently (don't nag).
+## Step 11 — Hand off to terse-md (if installed)
+
+**Check the currently-available skills list** for a skill named `terse-md:run`.
+
+### Path-compatibility precheck (applies to both branches below)
+
+Terse-md tokenizes its `args` string on whitespace and has no quoting or escape handling for paths. If `{MEMORY_DIR}` contains any space character, MemPenny cannot safely hand off to terse-md — a path like `/home/u/my projects/memory` would be mis-parsed by terse-md as `raw_path=/home/u/my` plus a loose `projects/memory` token, which terse-md then discards silently. Check:
+
+```bash
+case "{MEMORY_DIR}" in *" "*) echo HAS_SPACE;; esac
+```
+
+**If this prints `HAS_SPACE`, treat terse-md as unavailable for this run** regardless of whether it's in the skills list. Print the `apply.terse_md_path_has_space_note` line (substituting `{dir}` with `{MEMORY_DIR}`), then STOP. Do not invoke terse-md; do not print the "not installed" hint either — the issue is the path, not the install.
+
+### If `terse-md:run` IS in your skills list (and the precheck passed):
+
+Print the localized `apply.terse_md_handoff_note` (substituting `{dir}` with `{MEMORY_DIR}`). Then invoke terse-md via the Skill tool with exactly this `args` string:
+
+```
+--all {MEMORY_DIR}
+```
+
+No other flags. Substitute `{MEMORY_DIR}` with the validated realpath-resolved value from Step 3 — do NOT interpolate any other part of the user's `$ARGUMENTS`. Terse-md will run its own interactive pipeline (normalize → compress → review → optional `.approved.yaml` write) and print its own summary.
+
+### If `terse-md:run` is NOT in your skills list (and the precheck passed):
+
+Print the localized `apply.terse_md_not_installed_hint` (no substitutions), then print the install command block below **verbatim from this file** — do NOT read it from the locale. A translation PR must never be able to swap the commands the user copy-pastes into their shell (same hardening pattern as v0.4.1's H4 fix for `/mp:memory-compress`).
+
+**The install command block (print this exact fenced block after the localized prose):**
+
+```
+/plugin marketplace add marcelopaniza/terse-md
+/plugin install terse-md@marcelopaniza-terse-md
+/reload-plugins
+```
+
+Do not nag, do not retry, do not loop. Then exit.
 
 ---
 
