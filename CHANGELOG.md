@@ -2,6 +2,29 @@
 
 All notable changes to MemPenny are documented here. This project follows [semantic versioning](https://semver.org/).
 
+## [0.5.2] — 2026-04-19
+
+Fold the terse-md handoff into the existing `/mp:clean` apply prompt so the user makes both decisions (apply the triage; run terse-md after) in a single interaction. Previously, terse-md was auto-invoked at Step 11 when installed, which was surprising for users who only wanted the triage step.
+
+### Changed
+
+- **`/mp:clean` Step 8 now offers up to four options instead of three.** When `terse-md:run` is installed AND `{MEMORY_DIR}` contains no space, the prompt presents:
+  - `Yes, apply + run terse-md after` (Recommended)
+  - `Yes, apply only`
+  - `No, cancel`
+  - `Show full table`
+
+  When terse-md is missing or the path has a space, the prompt falls back to the pre-v0.5.2 three-option list (`Yes, apply` / `No, cancel` / `Show full table`) — those users never see an option they can't act on.
+
+- **Step 11 now branches on the Step 8 choice.** Four exhaustive branches: (A) user asked for terse-md and we invoke it, (B) user declined terse-md → short "skipping, run later" note, (C) terse-md was never offered because it's not installed → not-installed hint + install block, (D) terse-md was installed but path had a space → space note. The install block is still hardcoded in `clean.md` (never from the locale), preserving the v0.5.1 H2 fix.
+
+- **Locale:** new key `apply.terse_md_skipped_by_user` added to `en`, `es`, `pt-BR`. No existing keys renamed or removed.
+
+### Notes
+
+- Terse-md's own first-run "Ready? Continue" gate still fires after our handoff. That's a gate inside terse-md's pipeline (before it processes files) and is unchanged — we do not bypass it.
+- No breaking changes. Config schema (still v2), backup format, and rollback semantics are identical to v0.5.1.
+
 ## [0.5.1] — 2026-04-19
 
 Swap the optional downstream compressor from caveman to [terse-md](https://github.com/marcelopaniza/terse-md). MemPenny's own behavior (triage: delete / archive / distill) is unchanged. Users who had caveman installed and relied on `/mp:memory-compress` should install terse-md to keep a compression step in the pipeline; users who never installed caveman see no behavioral difference, just a different install hint if they invoke compress.

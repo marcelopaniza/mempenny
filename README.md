@@ -34,7 +34,7 @@ What `/mp:clean` does, in order:
 2. Asks you to confirm.
 3. Creates a timestamped backup.
 4. Applies the approved changes (deletes, archives, distillations).
-5. If [terse-md](https://github.com/marcelopaniza/terse-md) is installed, hands off to `/terse-md:run --all <memory-dir>` for a prose-level compression pass on the surviving files. If terse-md is not installed, MemPenny prints a short note — you can install terse-md and re-run compress later, or skip it. Nothing is missing either way.
+5. If [terse-md](https://github.com/marcelopaniza/terse-md) is installed, the apply prompt offers a fourth option — `Yes, apply + run terse-md after` — and MemPenny hands off to terse-md only if you pick it. If terse-md is not installed, MemPenny prints a short note after the apply — you can install terse-md and re-run compress later, or skip it. Nothing is missing either way.
 
 **Roll back if something feels wrong:**
 
@@ -84,7 +84,7 @@ First run of `/mp:clean` in a memory directory prompts for the folder and adds a
 
 ## Calling terse-md manually
 
-`/mp:clean` chains to terse-md automatically when it's installed. You can also run terse-md directly, any time:
+`/mp:clean` offers to chain to terse-md when it's installed (via a fourth option on the apply prompt). You can also run terse-md directly, any time:
 
 ```
 /terse-md:run --all /path/to/memory

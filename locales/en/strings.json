@@ -39,7 +39,8 @@
     "next_step_suggestion": "Run `/mp:memory-compress --dir {dir}` to compress the surviving prose with terse-md (if installed). MemPenny removes what shouldn't be there; terse-md shrinks what's left.",
     "terse_md_handoff_note": "terse-md is installed. Handing off to `/terse-md:run --all {dir}` to compress the surviving files. terse-md runs its own review and never overwrites your originals — it writes `.approved.yaml` siblings only on explicit approval.",
     "terse_md_not_installed_hint": "terse-md is not installed. Your memory is triaged. If you want further compression (Markdown → validated YAML, round-trip reviewed), install terse-md using the commands shown below and run `/mp:memory-compress` when ready. Skipping this step is fine — nothing is missing.",
-    "terse_md_path_has_space_note": "Memory directory {dir} contains a space. Skipping the terse-md handoff — terse-md currently tokenizes its arguments on whitespace with no quoting, so a spaced path would be mis-parsed. Your triage and compression (prose-level) still completed. To enable the handoff, use a path without spaces or run terse-md manually after renaming."
+    "terse_md_path_has_space_note": "Memory directory {dir} contains a space. Skipping the terse-md handoff — terse-md currently tokenizes its arguments on whitespace with no quoting, so a spaced path would be mis-parsed. Your triage and compression (prose-level) still completed. To enable the handoff, use a path without spaces or run terse-md manually after renaming.",
+    "terse_md_skipped_by_user": "Skipping terse-md. Run `/mp:memory-compress --dir {dir}` later if you change your mind."
   },
   "distill": {
     "file_label": "File",

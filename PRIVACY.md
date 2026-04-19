@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Last updated: 2026-04-19** (v0.5.1)
+**Last updated: 2026-04-19** (v0.5.2)
 
 MemPenny is a Claude Code plugin that operates entirely on your local filesystem. It collects, stores, and transmits **no data** to any external service.
 
@@ -28,7 +28,7 @@ Every operation is scoped to the directory you specify (plus the config file abo
 
 ## Third-party components
 
-MemPenny optionally invokes [terse-md](https://github.com/marcelopaniza/terse-md)'s `run` skill via Claude Code's Skill tool in two places: (1) at the end of a successful `/mp:clean` run, when terse-md is installed, to compress the surviving memory files; (2) when the user explicitly runs `/mp:memory-compress`. In both cases, MemPenny passes only the memory directory path (plus pass-through `--dry-run` / `--include-all` flags from the user) — no file contents, no identifiers, nothing else. If terse-md is not installed, MemPenny prints a one-paragraph install hint and does nothing. Terse-md is a separate plugin with its own privacy properties — see its repository for details.
+MemPenny optionally invokes [terse-md](https://github.com/marcelopaniza/terse-md)'s `run` skill via Claude Code's Skill tool in two places: (1) at the end of a successful `/mp:clean` run, **only when terse-md is installed AND the user explicitly selected the "Yes, apply + run terse-md after" option at the apply confirmation prompt** (v0.5.2+); (2) when the user explicitly runs `/mp:memory-compress`. In both cases, MemPenny passes only the memory directory path (plus pass-through `--dry-run` / `--include-all` flags from the user) — no file contents, no identifiers, nothing else. If terse-md is not installed, MemPenny prints a one-paragraph install hint and does nothing. Terse-md is a separate plugin with its own privacy properties — see its repository for details.
 
 ## Your data stays on your machine
 
@@ -50,4 +50,4 @@ Privacy questions, concerns, or reports: open an issue at https://github.com/mar
 
 ---
 
-*This policy applies to MemPenny versions 0.5.1 and later. It does not cover terse-md, Claude Code itself, or any other plugin you may have installed alongside MemPenny.*
+*This policy applies to MemPenny versions 0.5.2 and later. It does not cover terse-md, Claude Code itself, or any other plugin you may have installed alongside MemPenny.*
