@@ -2,6 +2,31 @@
 
 All notable changes to MemPenny are documented here. This project follows [semantic versioning](https://semver.org/).
 
+## [0.6.0] — 2026-04-19
+
+Remove the optional downstream compressor hook from MemPenny's execution path. MemPenny now stays entirely within the delete / archive / distill / keep strategy hierarchy; any prose-level compression the user wants to do is on them to invoke separately.
+
+### Removed (breaking)
+
+- **`/mp:memory-compress` command removed.** The command was a thin router to an optional external compressor. If you were using it, invoke your compressor of choice directly instead.
+- **`/mp:clean` no longer offers a compressor handoff.** The Step 8 apply prompt is back to three options: `Yes, apply` / `No, cancel` / `Show full table`. Step 11 (previously the 4-branch compressor-handoff dispatcher) is gone.
+- **`/mp:memory-apply` no longer prints a "next step: run compress" suggestion.** The apply finishes, prints its summary, and exits.
+
+### Removed (locale)
+
+- `apply.next_step_header`, `apply.next_step_suggestion`
+- `apply.terse_md_handoff_note`, `apply.terse_md_not_installed_hint`, `apply.terse_md_path_has_space_note`, `apply.terse_md_skipped_by_user`
+- `errors.terse_md_not_installed_prose`, `errors.terse_md_path_has_space`
+
+All three locales (`en`, `es`, `pt-BR`) now carry the same 75 keys.
+
+### Notes
+
+- No config schema change (still v2, per-memory-dir).
+- No backup / restore format change.
+- The README still mentions optional external compressors as something a user can choose to run separately — MemPenny itself no longer references them.
+- Migration: if you relied on `/mp:memory-compress`, install and invoke your compressor of choice directly after `/mp:clean` finishes.
+
 ## [0.5.2] — 2026-04-19
 
 Fold the terse-md handoff into the existing `/mp:clean` apply prompt so the user makes both decisions (apply the triage; run terse-md after) in a single interaction. Previously, terse-md was auto-invoked at Step 11 when installed, which was surprising for users who only wanted the triage step.

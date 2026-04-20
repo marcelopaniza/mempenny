@@ -1,12 +1,12 @@
 # Privacy Policy
 
-**Last updated: 2026-04-19** (v0.5.2)
+**Last updated: 2026-04-19** (v0.6.0)
 
 MemPenny is a Claude Code plugin that operates entirely on your local filesystem. It collects, stores, and transmits **no data** to any external service.
 
 ## What MemPenny does with your files
 
-MemPenny's slash commands (`/mp:clean`, `/mp:restore`, `/mp:memory-triage`, `/mp:memory-apply`, `/mp:memory-distill`, `/mp:memory-compress`) touch files **only inside the auto-memory directory you explicitly target** — either your current project's directory or one you specify via `--dir <path>` — plus a single small config file at `~/.claude/mempenny.config.json`. Specifically:
+MemPenny's slash commands (`/mp:clean`, `/mp:restore`, `/mp:memory-triage`, `/mp:memory-apply`, `/mp:memory-distill`) touch files **only inside the auto-memory directory you explicitly target** — either your current project's directory or one you specify via `--dir <path>` — plus a single small config file at `~/.claude/mempenny.config.json`. Specifically:
 
 - **Reads** every `.md` file in the target directory (to classify it during triage or to read its body during distill/apply).
 - **Writes** to files in that same directory: deletions (`rm`), moves to an `archive/` subdirectory, in-place body replacements for distilled files, and updates to `MEMORY.md`.
@@ -28,7 +28,7 @@ Every operation is scoped to the directory you specify (plus the config file abo
 
 ## Third-party components
 
-MemPenny optionally invokes [terse-md](https://github.com/marcelopaniza/terse-md)'s `run` skill via Claude Code's Skill tool in two places: (1) at the end of a successful `/mp:clean` run, **only when terse-md is installed AND the user explicitly selected the "Yes, apply + run terse-md after" option at the apply confirmation prompt** (v0.5.2+); (2) when the user explicitly runs `/mp:memory-compress`. In both cases, MemPenny passes only the memory directory path (plus pass-through `--dry-run` / `--include-all` flags from the user) — no file contents, no identifiers, nothing else. If terse-md is not installed, MemPenny prints a one-paragraph install hint and does nothing. Terse-md is a separate plugin with its own privacy properties — see its repository for details.
+MemPenny does not invoke any other plugin or external tool. Every action is performed by MemPenny's own commands within the scope described above.
 
 ## Your data stays on your machine
 
@@ -50,4 +50,4 @@ Privacy questions, concerns, or reports: open an issue at https://github.com/mar
 
 ---
 
-*This policy applies to MemPenny versions 0.5.2 and later. It does not cover terse-md, Claude Code itself, or any other plugin you may have installed alongside MemPenny.*
+*This policy applies to MemPenny versions 0.6.0 and later. It does not cover Claude Code itself or any other plugin you may have installed alongside MemPenny.*

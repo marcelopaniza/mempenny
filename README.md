@@ -2,7 +2,7 @@
 
 **Keep your Claude Code auto-memory lean.**
 
-MemPenny triages your auto-memory directory: it deletes what's obsolete, archives what's historical, distills what's bloated, and leaves the rest alone. If [terse-md](https://github.com/marcelopaniza/terse-md) is installed, MemPenny can hand off to it at the end of a clean for a second, prose-level compression pass.
+MemPenny triages your auto-memory directory: it deletes what's obsolete, archives what's historical, distills what's bloated, and leaves the rest alone.
 
 ## Install
 
@@ -31,10 +31,9 @@ That's it. On first run in a memory directory, MemPenny asks where to put backup
 What `/mp:clean` does, in order:
 
 1. Runs a dry-run triage of the memory directory and prints a summary.
-2. Asks you to confirm.
+2. Asks you to confirm (`Yes, apply` / `No, cancel` / `Show full table`).
 3. Creates a timestamped backup.
 4. Applies the approved changes (deletes, archives, distillations).
-5. If [terse-md](https://github.com/marcelopaniza/terse-md) is installed, the apply prompt offers a fourth option — `Yes, apply + run terse-md after` — and MemPenny hands off to terse-md only if you pick it. If terse-md is not installed, MemPenny prints a short note after the apply — you can install terse-md and re-run compress later, or skip it. Nothing is missing either way.
 
 **Roll back if something feels wrong:**
 
@@ -55,7 +54,6 @@ Lists backups, you pick one. The current state is snapshotted first, so the rest
 - `/mp:memory-triage [--dir <path>] [--only <glob>] [--lang <code>]` — dry-run triage. Produces a markdown classification table at a private `mktemp` path with permissions `600`. No writes.
 - `/mp:memory-apply <table-file> [--dir <path>] [--lang <code>]` — applies a previously approved triage table. Table path is required; pass the path printed by `/mp:memory-triage`. Creates a backup before modifying anything.
 - `/mp:memory-distill <file> [--lang <code>]` — one-off distillation of a single file. Interactive: shows the proposal, asks to apply / skip / edit.
-- `/mp:memory-compress [--dir <path>] [--lang <code>] [--dry-run] [--include-all]` — thin router to terse-md. Detects `/terse-md:run`; invokes it on the memory directory if installed, otherwise prints an install hint and stops. MemPenny does not modify any file in this command.
 
 ## Flags on `/mp:clean`
 
@@ -82,23 +80,22 @@ First run of `/mp:clean` in a memory directory prompts for the folder and adds a
 
 **Upgrading from v0.4.x** (single global `backup_folder`): the config is auto-migrated on first `/mp:clean` run. The old global path is preserved for the current memory directory only; other projects get their own prompt next time you clean them.
 
-## Calling terse-md manually
+## Pairing with a prose compressor
 
-`/mp:clean` offers to chain to terse-md when it's installed (via a fourth option on the apply prompt). You can also run terse-md directly, any time:
+MemPenny's strategy hierarchy stops at DISTILL. If you want to go further and compress the surviving prose (Markdown → validated YAML with round-trip review), that's a separate step you run yourself — MemPenny won't invoke another tool on your behalf.
 
-```
-/terse-md:run --all /path/to/memory
-```
-
-Terse-md compresses each Markdown file to a validated YAML sibling (`<name>.approved.yaml`). It runs its own per-file review and never overwrites the source. See [terse-md's README](https://github.com/marcelopaniza/terse-md) for its own flags and behavior.
-
-**If terse-md isn't installed and you want to install it:**
+One option is [terse-md](https://github.com/marcelopaniza/terse-md), a standalone plugin:
 
 ```
 /plugin marketplace add marcelopaniza/terse-md
 /plugin install terse-md@marcelopaniza-terse-md
 /reload-plugins
+
+# then, any time:
+/terse-md:run --all /path/to/memory
 ```
+
+Terse-md is independent of MemPenny — its install, behavior, and privacy properties are its own. Use it, don't use it, or use a different compressor; the triage MemPenny did is still valid either way.
 
 ## Rollback — manual
 
@@ -156,14 +153,14 @@ DELETE    →  zero tokens, zero loss if truly obsolete
 ARCHIVE   →  move out of auto-load path, keep for forensics
 DISTILL   →  replace narrative with 1-3 lines of forward-looking truth
 KEEP      →  leave alone
-COMPRESS  →  terse-md's job, out of scope for MemPenny
+COMPRESS  →  out of scope for MemPenny (run a prose compressor separately)
 ```
 
 MemPenny owns the first three. The fourth is the default. The fifth is optional and lives outside MemPenny.
 
 ## How it works
 
-All commands are prompt templates. `/mp:clean` orchestrates a triage subagent and an apply subagent back-to-back with a confirm gate between them, remembers your backup folder **per memory directory** in `~/.claude/mempenny.config.json`, and optionally chains to terse-md at the end. `/mp:restore` lists backups, takes a safety snapshot, and copies a chosen backup into place. `/mp:memory-triage` spawns a read-only `Explore` subagent. `/mp:memory-apply` spawns a general-purpose subagent for the `rm` / `mv` / body-replace operations after creating a backup. `/mp:memory-distill` is interactive and runs in the main conversation.
+All commands are prompt templates. `/mp:clean` orchestrates a triage subagent and an apply subagent back-to-back with a confirm gate between them, and remembers your backup folder **per memory directory** in `~/.claude/mempenny.config.json`. `/mp:restore` lists backups, takes a safety snapshot, and copies a chosen backup into place. `/mp:memory-triage` spawns a read-only `Explore` subagent. `/mp:memory-apply` spawns a general-purpose subagent for the `rm` / `mv` / body-replace operations after creating a backup. `/mp:memory-distill` is interactive and runs in the main conversation.
 
 No Python, no scripts, no daemon. The plugin is markdown command files, three JSON locale files, and a plugin manifest.
 
@@ -174,7 +171,7 @@ No Python, no scripts, no daemon. The plugin is markdown command files, three JS
 
 ## See also
 
-- [terse-md](https://github.com/marcelopaniza/terse-md) — the Markdown → validated YAML compressor MemPenny optionally hands off to at the end of a clean.
+- [terse-md](https://github.com/marcelopaniza/terse-md) — a standalone Markdown → validated YAML compressor you can run separately after MemPenny's triage if you want prose-level compression. Independent plugin; not invoked by MemPenny.
 
 ## License
 

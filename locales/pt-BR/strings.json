@@ -34,13 +34,7 @@
     "archive_label": "Arquivo",
     "net_savings_label": "Economia líquida",
     "rollback_comment": "Reverter se algo parecer errado",
-    "warnings_header": "Avisos",
-    "next_step_header": "Próximo passo",
-    "next_step_suggestion": "Execute `/mp:memory-compress --dir {dir}` para comprimir a prosa sobrevivente com terse-md (se instalado). MemPenny remove o que não deveria estar lá; terse-md comprime o que resta.",
-    "terse_md_handoff_note": "terse-md está instalado. Passando para `/terse-md:run --all {dir}` para comprimir os arquivos sobreviventes. terse-md executa sua própria revisão e nunca sobrescreve os originais — só escreve arquivos `.approved.yaml` irmãos após aprovação explícita.",
-    "terse_md_not_installed_hint": "terse-md não está instalado. Sua memória já está triada. Se quiser compressão adicional (Markdown → YAML validado com revisão de ida e volta), instale o terse-md usando os comandos mostrados abaixo e execute `/mp:memory-compress` quando quiser. Pular este passo está OK — nada está faltando.",
-    "terse_md_path_has_space_note": "O diretório de memória {dir} contém um espaço. Pulando a entrega para o terse-md — o terse-md tokeniza seus argumentos por espaços sem aspas, e um caminho com espaços seria mal interpretado. A triagem e a compressão (em nível de prosa) foram concluídas. Para habilitar a entrega, use um caminho sem espaços ou execute o terse-md manualmente após renomear.",
-    "terse_md_skipped_by_user": "Pulando o terse-md. Execute `/mp:memory-compress --dir {dir}` depois se mudar de ideia."
+    "warnings_header": "Avisos"
   },
   "distill": {
     "file_label": "Arquivo",
@@ -91,8 +85,6 @@
     "table_not_found": "Tabela de triagem não encontrada em {path}. Execute `/mp:memory-triage` primeiro, depois passe o caminho da tabela impresso como primeiro argumento para `/mp:memory-apply`.",
     "backup_failed": "Falha ao criar backup. PARANDO. Nenhum arquivo foi modificado.",
     "locale_missing": "Locale '{lang}' não encontrado. Voltando para inglês. Envie um PR de tradução em https://github.com/marcelopaniza/mempenny/tree/main/locales",
-    "terse_md_not_installed_prose": "terse-md não está instalado. MemPenny para aqui — não vai escrever nada durante a compressão. Para instalar o terse-md, execute os comandos mostrados abaixo, depois execute novamente `/mp:memory-compress --dir {dir}`.",
-    "terse_md_path_has_space": "O diretório de memória {dir} contém um espaço. O terse-md tokeniza seus argumentos por espaços sem aspas e interpretaria o caminho incorretamente. Recusando a invocação. Use um caminho sem espaços ou execute o terse-md manualmente após renomear.",
     "backup_folder_invalid": "O caminho da pasta de backup deve ser absoluto e gravável: {path}",
     "backup_not_found": "Backup não encontrado: {name}"
   }

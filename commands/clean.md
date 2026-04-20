@@ -230,46 +230,21 @@ Print a short summary using `triage.*` labels (same format as `/mp:memory-triage
 
 Then show 3-5 high-confidence DELETE examples and 2-3 DISTILL examples (same as triage command).
 
-## Step 8 — Confirm before applying (and decide on terse-md in the same prompt)
+## Step 8 — Confirm before applying
 
 Unlike `/mp:memory-triage`, this command auto-applies — but only after the user explicitly approves.
 
-### 8a — Pre-detect terse-md readiness
+Call `AskUserQuestion` with question `"Apply these changes?"` and exactly these three options:
 
-Before building the `AskUserQuestion`, compute two booleans:
+- `Yes, apply` → user_choice = `APPLY`
+- `No, cancel` → user_choice = `CANCEL`
+- `Show full table` → user_choice = `SHOW_TABLE`
 
-1. **`terse_md_installed`** — true iff a skill named `terse-md:run` appears in the currently-available skills list (your system context at the top of the conversation).
-
-2. **`terse_md_path_ok`** — true iff `{MEMORY_DIR}` contains no space character. Check via Bash:
-
-   ```bash
-   case "{MEMORY_DIR}" in *" "*) echo HAS_SPACE;; *) echo PATH_OK;; esac
-   ```
-
-   `PATH_OK` → true; `HAS_SPACE` → false. Terse-md tokenizes its `args` string on whitespace with no quoting, so a spaced path would be mis-parsed — we refuse to hand off in that case.
-
-Define **`terse_md_ready = terse_md_installed AND terse_md_path_ok`**. Hold this boolean for Steps 8b and 11.
-
-### 8b — Ask with a terse-md-aware option list
-
-Call `AskUserQuestion` with question `"Apply these changes?"` and an options list that depends on `terse_md_ready`:
-
-- **If `terse_md_ready` is `true`:** four options, in this order.
-  - `Yes, apply + run terse-md after` (Recommended) → user_choice = `APPLY_THEN_TERSE`
-  - `Yes, apply only` → user_choice = `APPLY_ONLY`
-  - `No, cancel` → user_choice = `CANCEL`
-  - `Show full table` → user_choice = `SHOW_TABLE`
-
-- **If `terse_md_ready` is `false`:** three options, same as pre-v0.5.2.
-  - `Yes, apply` → user_choice = `APPLY_ONLY`
-  - `No, cancel` → user_choice = `CANCEL`
-  - `Show full table` → user_choice = `SHOW_TABLE`
-
-Hold the user's choice as `{USER_CHOICE}` for Step 11. Match by **exact** label string — `AskUserQuestion` implicitly exposes an "Other" free-text path, so if the user picks Other or their answer doesn't match one of the labels above character-for-character, treat it as `CANCEL` (the safest default — no files touched). Branching semantics:
+Match by **exact** label string — `AskUserQuestion` implicitly exposes an "Other" free-text path, so if the user picks Other or their answer doesn't match one of the labels above character-for-character, treat it as `CANCEL` (the safest default — no files touched). Branching semantics:
 
 - `CANCEL` → STOP. Leave `{TABLE_PATH}` in place so the user can review manually and run `/mp:memory-apply {TABLE_PATH}` later. Print a short "cancelled, nothing changed" message including the literal path so the user can copy it. Exit.
-- `SHOW_TABLE` → Read `{TABLE_PATH}` and print it verbatim, then re-invoke `AskUserQuestion` with the same question + option list. (The "Show" option is never recorded as a final `{USER_CHOICE}`.)
-- `APPLY_ONLY` or `APPLY_THEN_TERSE` → proceed to the TOCTOU re-check below, then Step 9.
+- `SHOW_TABLE` → Read `{TABLE_PATH}` and print it verbatim, then re-invoke `AskUserQuestion` with the same question + option list. (The "Show" option is never recorded as a final user_choice.)
+- `APPLY` → proceed to the TOCTOU re-check below, then Step 9.
 
 **TOCTOU re-check before handing off to Step 9 (M2):** Before spawning the apply subagent, re-verify `{BACKUP_ROOT}` in Bash:
 
@@ -319,45 +294,7 @@ Render the result using `apply.*` labels (same shape as `/mp:memory-apply` Step 
 
 Do NOT print the long `rm -rf … && mv …` rollback snippet — that's what `/mp:restore` is for. Just point them there.
 
-Then print the localized `clean.backup_pruning_hint` (substituting `{backup_root}` with `{BACKUP_ROOT}`).
-
-## Step 11 — Branch on Step 8 choice + terse-md readiness
-
-The decision matrix uses `{USER_CHOICE}` (from Step 8b) and the `terse_md_installed` / `terse_md_path_ok` booleans (from Step 8a). Do NOT re-detect — use the values already computed. Exactly one of the four branches below fires.
-
-### Branch A — `{USER_CHOICE} == APPLY_THEN_TERSE`
-
-The user chose to run terse-md after the apply. `terse_md_ready` was guaranteed true at Step 8 time (that's why this option was offered). Print the localized `apply.terse_md_handoff_note` (substituting `{dir}` with `{MEMORY_DIR}`). Then invoke terse-md via the Skill tool with exactly this `args` string:
-
-```
---all {MEMORY_DIR}
-```
-
-No other flags. Substitute `{MEMORY_DIR}` with the validated realpath-resolved value from Step 3 — do NOT interpolate any other part of the user's `$ARGUMENTS`. Terse-md will run its own interactive pipeline (first-run "Ready?" gate → normalize → compress → per-file review → optional `.approved.yaml` write) and print its own summary. Exit after terse-md returns.
-
-### Branch B — `{USER_CHOICE} == APPLY_ONLY` AND `terse_md_ready` was `true`
-
-The user was offered the terse-md option and declined. Print the localized `apply.terse_md_skipped_by_user` (substituting `{dir}` with `{MEMORY_DIR}`). No install block, no nag. Exit.
-
-### Branch C — `{USER_CHOICE} == APPLY_ONLY` AND `terse_md_installed` was `false`
-
-Terse-md wasn't in the skills list, so Step 8 didn't offer the option. Surface it now. Print the localized `apply.terse_md_not_installed_hint` (no substitutions), then print the install command block below **verbatim from this file** — do NOT read it from the locale. A translation PR must never be able to swap the commands the user copy-pastes into their shell (same hardening pattern as v0.4.1's H4 fix for `/mp:memory-compress`).
-
-**The install command block (print this exact fenced block after the localized prose):**
-
-```
-/plugin marketplace add marcelopaniza/terse-md
-/plugin install terse-md@marcelopaniza-terse-md
-/reload-plugins
-```
-
-Do not nag, do not retry, do not loop. Then exit.
-
-### Branch D — `{USER_CHOICE} == APPLY_ONLY` AND `terse_md_installed` was `true` AND `terse_md_path_ok` was `false`
-
-Terse-md is installed, but we refused to offer it because `{MEMORY_DIR}` contains a space — terse-md would mis-parse the path. Print the localized `apply.terse_md_path_has_space_note` (substituting `{dir}` with `{MEMORY_DIR}`). Exit.
-
-**Mutual exclusion note:** `{USER_CHOICE}` cannot be `CANCEL` here (Step 8 exited on cancel) and cannot be `SHOW_TABLE` (that only re-asks, never leaves as a final choice). The four branches above are exhaustive.
+Then print the localized `clean.backup_pruning_hint` (substituting `{backup_root}` with `{BACKUP_ROOT}`). Exit.
 
 ---
 

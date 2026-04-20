@@ -136,16 +136,6 @@ mv "<BACKUP_PATH>" "<MEMORY_DIR>/"
 
 (If the backup went to `{BACKUP_ROOT}` from config, the user can also run `/mp:restore` to pick it interactively.)
 
-After the rollback block, print the localized **next-step suggestion** from `apply.next_step_header` and `apply.next_step_suggestion`, substituting `{dir}` with the target directory. Example (en):
-
-```
-**Next step**
-
-Run `/mp:memory-compress --dir <MEMORY_DIR>` to compress the surviving prose with terse-md (if installed). MemPenny removes what shouldn't be there; terse-md shrinks what's left.
-```
-
-This is a suggestion, not an automatic action. The user runs compress when ready. If they don't have terse-md, `/mp:memory-compress` will detect that and print install instructions rather than modifying anything.
-
 ---
 
 ## Apply prompt (pass to the subagent)
