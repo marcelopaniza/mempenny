@@ -8,13 +8,13 @@ MemPenny triages your auto-memory directory: it deletes what's obsolete, archive
 
 ```
 /plugin marketplace add marcelopaniza/mempenny
-/plugin install mp@mempenny
+/plugin install mempenny@mempenny
 /reload-plugins
 ```
 
-Commands are namespaced under `mp:` — invoke them as `/mp:clean`, `/mp:restore`, etc.
+Commands are namespaced under `mempenny:` — invoke them as `/mempenny:clean`, `/mempenny:restore`, etc.
 
-> **Upgrading from 0.3.x?** Reinstall — the namespace changed from `/mempenny:…` to `/mp:…`. Existing backups are untouched.
+> **Upgrading from 0.4.x–0.6.x?** Reinstall — the namespace changed back from `/mp:…` to `/mempenny:…`. Existing backups and `~/.claude/mempenny.config.json` are untouched.
 
 ---
 
@@ -23,12 +23,12 @@ Commands are namespaced under `mp:` — invoke them as `/mp:clean`, `/mp:restore
 **One command, end-to-end:**
 
 ```
-/mp:clean
+/mempenny:clean
 ```
 
 That's it. On first run in a memory directory, MemPenny asks where to put backups (defaults to a sibling folder next to the memory dir) and remembers the choice. Every subsequent run in that directory is one command.
 
-What `/mp:clean` does, in order:
+What `/mempenny:clean` does, in order:
 
 1. Runs a dry-run triage of the memory directory and prints a summary.
 2. Asks you to confirm (`Yes, apply` / `No, cancel` / `Show full table`).
@@ -38,7 +38,7 @@ What `/mp:clean` does, in order:
 **Roll back if something feels wrong:**
 
 ```
-/mp:restore
+/mempenny:restore
 ```
 
 Lists backups, you pick one. The current state is snapshotted first, so the restore itself is reversible.
@@ -51,11 +51,11 @@ Lists backups, you pick one. The current state is snapshotted first, so the rest
 
 ## Commands (manual phases)
 
-- `/mp:memory-triage [--dir <path>] [--only <glob>] [--lang <code>]` — dry-run triage. Produces a markdown classification table at a private `mktemp` path with permissions `600`. No writes.
-- `/mp:memory-apply <table-file> [--dir <path>] [--lang <code>]` — applies a previously approved triage table. Table path is required; pass the path printed by `/mp:memory-triage`. Creates a backup before modifying anything.
-- `/mp:memory-distill <file> [--lang <code>]` — one-off distillation of a single file. Interactive: shows the proposal, asks to apply / skip / edit.
+- `/mempenny:memory-triage [--dir <path>] [--only <glob>] [--lang <code>]` — dry-run triage. Produces a markdown classification table at a private `mktemp` path with permissions `600`. No writes.
+- `/mempenny:memory-apply <table-file> [--dir <path>] [--lang <code>]` — applies a previously approved triage table. Table path is required; pass the path printed by `/mempenny:memory-triage`. Creates a backup before modifying anything.
+- `/mempenny:memory-distill <file> [--lang <code>]` — one-off distillation of a single file. Interactive: shows the proposal, asks to apply / skip / edit.
 
-## Flags on `/mp:clean`
+## Flags on `/mempenny:clean`
 
 - `--dir <path>` — operate on a memory directory other than the current project's.
 - `--only <glob>` — restrict triage scope by filename glob. Comma-separate multiple globs. Example: `--only "project_*_20*.md,reference_*.md"`.
@@ -76,9 +76,9 @@ MemPenny stores one small JSON file at `~/.claude/mempenny.config.json` mapping 
 }
 ```
 
-First run of `/mp:clean` in a memory directory prompts for the folder and adds an entry. Other entries are preserved on every write. The file is `chmod 600`.
+First run of `/mempenny:clean` in a memory directory prompts for the folder and adds an entry. Other entries are preserved on every write. The file is `chmod 600`.
 
-**Upgrading from v0.4.x** (single global `backup_folder`): the config is auto-migrated on first `/mp:clean` run. The old global path is preserved for the current memory directory only; other projects get their own prompt next time you clean them.
+**Upgrading from v0.4.x** (single global `backup_folder`): the config is auto-migrated on first `/mempenny:clean` run. The old global path is preserved for the current memory directory only; other projects get their own prompt next time you clean them.
 
 ## Pairing with a prose compressor
 
@@ -99,7 +99,7 @@ Terse-md is independent of MemPenny — its install, behavior, and privacy prope
 
 ## Rollback — manual
 
-Prefer `/mp:restore`. The paths below are for cases where that isn't an option.
+Prefer `/mempenny:restore`. The paths below are for cases where that isn't an option.
 
 **Backup path for a memory dir with a v2 config entry** (v0.5+): `<backup-folder>/memory.backup-YYYYMMDDHHMMSS-PID/`. The backup folder is whatever you configured for this memory directory.
 
@@ -116,9 +116,9 @@ rm -rf ~/.claude/projects/<PROJECT_ID>/memory/
 mv "<BACKUP_FOLDER>/memory.backup-<TIMESTAMP>-<PID>/" ~/.claude/projects/<PROJECT_ID>/memory/
 ```
 
-**If your config is still v1** (a v0.4.x `backup_folder` not yet migrated): the backup is at the global path. Read it with `jq -r .backup_folder ~/.claude/mempenny.config.json`. Running `/mp:clean` once auto-migrates to v2.
+**If your config is still v1** (a v0.4.x `backup_folder` not yet migrated): the backup is at the global path. Read it with `jq -r .backup_folder ~/.claude/mempenny.config.json`. Running `/mempenny:clean` once auto-migrates to v2.
 
-**If there's no config entry for this memory dir** (no config file, or v2 with no entry): `/mp:memory-apply` falls back to the legacy sibling path `<memory-dir>.backup-YYYYMMDDHHMMSS-PID/`. This fallback is NOT found by `/mp:restore` — add a config entry by running `/mp:clean` once.
+**If there's no config entry for this memory dir** (no config file, or v2 with no entry): `/mempenny:memory-apply` falls back to the legacy sibling path `<memory-dir>.backup-YYYYMMDDHHMMSS-PID/`. This fallback is NOT found by `/mempenny:restore` — add a config entry by running `/mempenny:clean` once.
 
 ## Backup retention
 
@@ -160,7 +160,7 @@ MemPenny owns the first three. The fourth is the default. The fifth is optional 
 
 ## How it works
 
-All commands are prompt templates. `/mp:clean` orchestrates a triage subagent and an apply subagent back-to-back with a confirm gate between them, and remembers your backup folder **per memory directory** in `~/.claude/mempenny.config.json`. `/mp:restore` lists backups, takes a safety snapshot, and copies a chosen backup into place. `/mp:memory-triage` spawns a read-only `Explore` subagent. `/mp:memory-apply` spawns a general-purpose subagent for the `rm` / `mv` / body-replace operations after creating a backup. `/mp:memory-distill` is interactive and runs in the main conversation.
+All commands are prompt templates. `/mempenny:clean` orchestrates a triage subagent and an apply subagent back-to-back with a confirm gate between them, and remembers your backup folder **per memory directory** in `~/.claude/mempenny.config.json`. `/mempenny:restore` lists backups, takes a safety snapshot, and copies a chosen backup into place. `/mempenny:memory-triage` spawns a read-only `Explore` subagent. `/mempenny:memory-apply` spawns a general-purpose subagent for the `rm` / `mv` / body-replace operations after creating a backup. `/mempenny:memory-distill` is interactive and runs in the main conversation.
 
 No Python, no scripts, no daemon. The plugin is markdown command files, three JSON locale files, and a plugin manifest.
 

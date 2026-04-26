@@ -9,7 +9,7 @@ Apply a pre-approved triage plan to a memory directory.
 
 The user invoked this command with: $ARGUMENTS
 
-- **Table path:** first positional argument, **required**. In v0.4.0 this defaulted to `/tmp/triage_table.md` when omitted; that default was removed in v0.4.1 (H3) because `/tmp` is not private on multi-user systems — a pre-placed `/tmp/triage_table.md` by another user or process could hijack the apply. Today `/mp:memory-triage` prints a per-invocation `mktemp` path; pass that path here. If the positional arg is missing, report `errors.table_not_found` from the loaded locale and STOP.
+- **Table path:** first positional argument, **required**. In v0.4.0 this defaulted to `/tmp/triage_table.md` when omitted; that default was removed in v0.4.1 (H3) because `/tmp` is not private on multi-user systems — a pre-placed `/tmp/triage_table.md` by another user or process could hijack the apply. Today `/mempenny:memory-triage` prints a per-invocation `mktemp` path; pass that path here. If the positional arg is missing, report `errors.table_not_found` from the loaded locale and STOP.
   - **Path validation (H3):** the table path must match `^/[A-Za-z0-9/_.\- ]{1,4096}$`, must resolve via `realpath`, must exist, and must not be a symlink. Reject otherwise.
   - **Permission sanity (F-M1 — explicit shell checks, not narrative):**
     ```bash
@@ -22,7 +22,7 @@ The user invoked this command with: $ARGUMENTS
     # Ownership: must be the current user
     [ "$owner" = "$(id -un)" ] || { echo "ABORT: table owned by '$owner', not '$(id -un)'"; exit 1; }
     ```
-- **`--dir <path>`** — absolute path to the memory directory to apply against. **Critical**: if the triage was run with `--dir`, the apply **must** be run with the same `--dir` so the table lines up with the right target dir. If not set, auto-detect the current project's memory dir (same logic as `/mp:memory-triage`).
+- **`--dir <path>`** — absolute path to the memory directory to apply against. **Critical**: if the triage was run with `--dir`, the apply **must** be run with the same `--dir` so the table lines up with the right target dir. If not set, auto-detect the current project's memory dir (same logic as `/mempenny:memory-triage`).
 - **`--lang <code>`** — language for the user-visible summary. If not passed, check `MEMPENNY_LOCALE`. Default `en`.
 
 ## Step 2 — Load locale strings
@@ -43,7 +43,7 @@ Read `${CLAUDE_PLUGIN_ROOT}/locales/<lang>/strings.json`. Fall back to `en` if m
 3. Depth: reject if the realpath equals `/` or has fewer than 2 path components.
 4. Existence + not-a-symlink: `[ -d "$resolved" ] && [ ! -L "$resolved" ]`.
 
-If all checks pass, use the resolved path as `{MEMORY_DIR}`. Otherwise, auto-detect `~/.claude/projects/<project-id>/memory/` from the current project (same logic as `/mp:memory-triage`).
+If all checks pass, use the resolved path as `{MEMORY_DIR}`. Otherwise, auto-detect `~/.claude/projects/<project-id>/memory/` from the current project (same logic as `/mempenny:memory-triage`).
 
 **Regardless of whether the path came from `--dir` or auto-detection, apply the 4-check validation block above before using it as `{MEMORY_DIR}` (H5).** If validation fails on the auto-detected path, print `errors.memory_dir_not_found` and STOP.
 
@@ -66,7 +66,7 @@ Before spawning the subagent, determine `{BACKUP_PATH}` as follows:
    - `memory_dirs` must be an object.
    - Every key and value in `memory_dirs` must match the tight regex `^/[A-Za-z0-9/_.\- ]{1,4096}$` (C1: rejects shell metacharacters like `$(…)` and backticks before any bash interpolation).
    - No key or value may contain `..` as a path segment.
-   - Look up `{MEMORY_DIR}` (realpath-normalized, no trailing slash) in `memory_dirs`. If no entry exists for this memory dir, treat the config as "no answer for this dir" and fall through to the legacy fallback in step 3. `/mp:memory-apply` does **not** prompt the user — that's `/mp:clean`'s job — so a missing entry simply means "sibling fallback" rather than "abort".
+   - Look up `{MEMORY_DIR}` (realpath-normalized, no trailing slash) in `memory_dirs`. If no entry exists for this memory dir, treat the config as "no answer for this dir" and fall through to the legacy fallback in step 3. `/mempenny:memory-apply` does **not** prompt the user — that's `/mempenny:clean`'s job — so a missing entry simply means "sibling fallback" rather than "abort".
    - If an entry exists, run `realpath "{entry-value}"` and verify the resolved path starts with `/`, still matches the tight regex, and that the **parent** of the resolved path exists (`[ -d "$(dirname "$resolved")" ]`). If any check fails, fall through to the legacy fallback.
    - Set `{BACKUP_ROOT}` to the realpath-resolved value.
 
@@ -74,13 +74,13 @@ Before spawning the subagent, determine `{BACKUP_PATH}` as follows:
    - `backup_folder` must be a string matching the tight regex above.
    - `realpath "{backup_folder}"` must resolve to a path that still starts with `/` and still matches the tight regex.
    - The **parent** of the resolved path must exist.
-   - If all checks pass, set `{BACKUP_ROOT}` to the realpath-resolved value. v0.4 semantics — a single global folder shared across all memory dirs — are preserved for read purposes so existing users aren't disrupted between running `/mp:clean` (which migrates to v2) and their next `/mp:memory-apply`. `/mp:memory-apply` does NOT write the config, so the v1→v2 migration never happens from this command.
+   - If all checks pass, set `{BACKUP_ROOT}` to the realpath-resolved value. v0.4 semantics — a single global folder shared across all memory dirs — are preserved for read purposes so existing users aren't disrupted between running `/mempenny:clean` (which migrates to v2) and their next `/mempenny:memory-apply`. `/mempenny:memory-apply` does NOT write the config, so the v1→v2 migration never happens from this command.
    - **C1 fix note:** v0.4.0 used the loose regex `^/[^\x00\n]{1,4096}$` which permitted command substitution in the subsequent realpath call. v0.4.1 tightened the regex; v0.5 keeps that tight regex and applies it to every entry in the v2 map (not just a single `backup_folder` string).
 
    Once `{BACKUP_ROOT}` is set (from either shape), set `{BACKUP_PATH}` = `{BACKUP_ROOT}/memory.backup-$(date -u +%Y%m%d%H%M%S)-$$/`.
 3. If the symlink guard fired, OR the config does NOT exist, OR schema validation failed for both v1 and v2 shapes, OR the v2 map has no entry for the current `{MEMORY_DIR}`, fall back to the legacy sibling path with the same-day-overwrite bug fixed: `{BACKUP_PATH}` = `{MEMORY_DIR}.backup-$(date -u +%Y%m%d%H%M%S)-$$/`.
 
-After computing `{BACKUP_PATH}` (either from config or fallback), verify the two paths don't overlap in either direction (matching `/mp:clean`'s check — previously apply only checked one direction):
+After computing `{BACKUP_PATH}` (either from config or fallback), verify the two paths don't overlap in either direction (matching `/mempenny:clean`'s check — previously apply only checked one direction):
 ```bash
 case "{BACKUP_PATH}" in "{MEMORY_DIR}"/*) echo "ABORT: backup path inside memory dir"; exit 1;; esac
 case "{MEMORY_DIR}"  in "{BACKUP_PATH}"/*) echo "ABORT: memory dir inside backup path"; exit 1;; esac
@@ -134,7 +134,7 @@ rm -rf "<MEMORY_DIR>/"
 mv "<BACKUP_PATH>" "<MEMORY_DIR>/"
 ```
 
-(If the backup went to `{BACKUP_ROOT}` from config, the user can also run `/mp:restore` to pick it interactively.)
+(If the backup went to `{BACKUP_ROOT}` from config, the user can also run `/mempenny:restore` to pick it interactively.)
 
 ---
 
@@ -194,7 +194,7 @@ BACKUP_COUNT=$(find "{BACKUP_PATH}" -type f | wc -l)
 
 ```bash
 set -euo pipefail
-# Sub-step 4 (M4): write a sha256 manifest so /mp:restore can verify the backup wasn't silently tampered
+# Sub-step 4 (M4): write a sha256 manifest so /mempenny:restore can verify the backup wasn't silently tampered
 ( cd "{BACKUP_PATH}" && find . -type f ! -name MANIFEST.sha256 -print0 | sort -z | xargs -0 sha256sum > MANIFEST.sha256 )
 chmod 600 "{BACKUP_PATH}/MANIFEST.sha256"
 ```
@@ -285,7 +285,7 @@ If any step-3 check fails → FAIL the row, log `filename '<raw>' failed H1 fs-c
    - `MEMORY.md: lines_removed_count <= (DELETE_applied + ARCHIVE_applied)` — less-than is OK, because an entry may not have been in MEMORY.md to begin with (rare but legal).
    - **No files outside the table were modified.** Iterate every file in `{MEMORY_DIR}` (top-level, excluding archive/) that does NOT appear in the table, plus every KEEP-row file; each must be byte-identical to its backup copy (sha256 compare, or at minimum mtime+size). Any drift → `INVARIANT FAILED: <file> modified but not in table`.
 
-   If any invariant fails, add one `INVARIANT FAILED: <description>` line per failure to the warnings block. Do NOT auto-rollback — the user decides via `/mp:restore`.
+   If any invariant fails, add one `INVARIANT FAILED: <description>` line per failure to the warnings block. Do NOT auto-rollback — the user decides via `/mempenny:restore`.
 
 ### Rollback policy
 
@@ -332,4 +332,4 @@ Bytes:
 <warnings, if any>
 ```
 
-(The outer `/mp:memory-apply` command will re-render these labels in the user's locale before showing to the user — your subagent output can stay in English.)
+(The outer `/mempenny:memory-apply` command will re-render these labels in the user's locale before showing to the user — your subagent output can stay in English.)

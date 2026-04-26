@@ -8,7 +8,7 @@
   },
   "plugins": [
     {
-      "name": "mp",
+      "name": "mempenny",
       "description": "MemPenny — keep auto-memory lean: delete obsolete, archive historical, distill bloated.",
       "source": "./",
       "category": "productivity"

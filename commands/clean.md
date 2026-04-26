@@ -60,7 +60,7 @@ Hold this as `{MEMORY_DIR}` for the rest of the flow.
 }
 ```
 
-One entry per memory directory. The key is the **realpath-normalized** absolute path to the memory dir (the same `{MEMORY_DIR}` value computed in Step 3); the value is the realpath-normalized backup folder chosen for that dir. The first run of `/mp:clean` against a given memory dir prompts for a backup folder and upserts an entry; subsequent runs against the same dir reuse it silently. Other memory dirs in the map are left untouched — no cross-contamination.
+One entry per memory directory. The key is the **realpath-normalized** absolute path to the memory dir (the same `{MEMORY_DIR}` value computed in Step 3); the value is the realpath-normalized backup folder chosen for that dir. The first run of `/mempenny:clean` against a given memory dir prompts for a backup folder and upserts an entry; subsequent runs against the same dir reuse it silently. Other memory dirs in the map are left untouched — no cross-contamination.
 
 **v1 legacy schema** (auto-migrated on read, see the migration block below):
 
@@ -122,7 +122,7 @@ When step 4's version detection found a v1 config (`"version": 1` + `backup_fold
    ```
    Migrated ~/.claude/mempenny.config.json from v1 to v2 (per-memory-dir config).
    Backup folder for {MEMORY_DIR} preserved: {BACKUP_ROOT}
-   Other memory dirs will be prompted for their own backup folder on first /mp:clean run.
+   Other memory dirs will be prompted for their own backup folder on first /mempenny:clean run.
    ```
 5. Continue with step 5 of the read logic above, as if the file had been v2 all along.
 
@@ -196,7 +196,7 @@ Before doing anything destructive, print a 3-line context so the user knows exac
 
 ## Step 6 — Run triage (dry run)
 
-Spawn a triage subagent identical to `/mp:memory-triage` Step 5. Use:
+Spawn a triage subagent identical to `/mempenny:memory-triage` Step 5. Use:
 
 - `subagent_type: Explore`
 - `model: sonnet`
@@ -213,7 +213,7 @@ Hold `{TABLE_PATH}` as the absolute path returned by `mktemp`. Write the returne
 
 ## Step 7 — Show the summary
 
-Print a short summary using `triage.*` labels (same format as `/mp:memory-triage` Step 6):
+Print a short summary using `triage.*` labels (same format as `/mempenny:memory-triage` Step 6):
 
 ```
 {triage.header}. {triage.table_path_label}: {TABLE_PATH}
@@ -232,7 +232,7 @@ Then show 3-5 high-confidence DELETE examples and 2-3 DISTILL examples (same as 
 
 ## Step 8 — Confirm before applying
 
-Unlike `/mp:memory-triage`, this command auto-applies — but only after the user explicitly approves.
+Unlike `/mempenny:memory-triage`, this command auto-applies — but only after the user explicitly approves.
 
 Call `AskUserQuestion` with question `"Apply these changes?"` and exactly these three options:
 
@@ -242,7 +242,7 @@ Call `AskUserQuestion` with question `"Apply these changes?"` and exactly these 
 
 Match by **exact** label string — `AskUserQuestion` implicitly exposes an "Other" free-text path, so if the user picks Other or their answer doesn't match one of the labels above character-for-character, treat it as `CANCEL` (the safest default — no files touched). Branching semantics:
 
-- `CANCEL` → STOP. Leave `{TABLE_PATH}` in place so the user can review manually and run `/mp:memory-apply {TABLE_PATH}` later. Print a short "cancelled, nothing changed" message including the literal path so the user can copy it. Exit.
+- `CANCEL` → STOP. Leave `{TABLE_PATH}` in place so the user can review manually and run `/mempenny:memory-apply {TABLE_PATH}` later. Print a short "cancelled, nothing changed" message including the literal path so the user can copy it. Exit.
 - `SHOW_TABLE` → Read `{TABLE_PATH}` and print it verbatim, then re-invoke `AskUserQuestion` with the same question + option list. (The "Show" option is never recorded as a final user_choice.)
 - `APPLY` → proceed to the TOCTOU re-check below, then Step 9.
 
@@ -262,9 +262,9 @@ If either check fails, STOP. Do not spawn the subagent or modify any files.
 
 ## Step 9 — Apply with timestamped backup
 
-Spawn the apply subagent (same as `/mp:memory-apply` Step 3), with one critical difference:
+Spawn the apply subagent (same as `/mempenny:memory-apply` Step 3), with one critical difference:
 
-**Override the backup location.** The default apply subagent creates the backup at `{MEMORY_DIR}.backup-YYYYMMDD/` (sibling of memory dir). For `/mp:clean`, the backup goes inside the user-configured `{BACKUP_ROOT}` with a timestamp:
+**Override the backup location.** The default apply subagent creates the backup at `{MEMORY_DIR}.backup-YYYYMMDD/` (sibling of memory dir). For `/mempenny:clean`, the backup goes inside the user-configured `{BACKUP_ROOT}` with a timestamp:
 
 ```
 {BACKUP_ROOT}/memory.backup-YYYYMMDDHHMMSS/
@@ -276,7 +276,7 @@ Parameterize the apply subagent prompt with:
 - `{BACKUP_PATH}` = `{BACKUP_ROOT}/memory.backup-$(date -u +%Y%m%d%H%M%S)-$$/`
   <!-- L2: UTC timestamp avoids timezone ambiguity; $$ (process ID) suffix prevents collision when two clean runs fire in the same second -->
 
-The apply prompt (shown at the bottom of this file) uses `{BACKUP_PATH}` verbatim instead of building its own path. Everything else (DELETE/ARCHIVE/DISTILL/MEMORY.md update) is identical to `/mp:memory-apply`.
+The apply prompt (shown at the bottom of this file) uses `{BACKUP_PATH}` verbatim instead of building its own path. Everything else (DELETE/ARCHIVE/DISTILL/MEMORY.md update) is identical to `/mempenny:memory-apply`.
 
 Tell the user before kicking off: `clean.auto_apply_note` with `{path}` = `{BACKUP_PATH}`.
 
@@ -284,7 +284,7 @@ Run in foreground; wait for the result.
 
 ## Step 10 — Report and hint at rollback
 
-Render the result using `apply.*` labels (same shape as `/mp:memory-apply` Step 4). Then print:
+Render the result using `apply.*` labels (same shape as `/mempenny:memory-apply` Step 4). Then print:
 
 ```
 {clean.done_header}
@@ -292,7 +292,7 @@ Render the result using `apply.*` labels (same shape as `/mp:memory-apply` Step 
 {clean.rollback_hint}   ← substitute {backup_name} with the basename of {BACKUP_PATH}
 ```
 
-Do NOT print the long `rm -rf … && mv …` rollback snippet — that's what `/mp:restore` is for. Just point them there.
+Do NOT print the long `rm -rf … && mv …` rollback snippet — that's what `/mempenny:restore` is for. Just point them there.
 
 Then print the localized `clean.backup_pruning_hint` (substituting `{backup_root}` with `{BACKUP_ROOT}`). Exit.
 
@@ -428,7 +428,7 @@ BACKUP_COUNT=$(find "{BACKUP_PATH}" -type f | wc -l)
 
 ```bash
 set -euo pipefail
-# Sub-step 4 (M4): write a sha256 manifest so /mp:restore can verify integrity
+# Sub-step 4 (M4): write a sha256 manifest so /mempenny:restore can verify integrity
 ( cd "{BACKUP_PATH}" && find . -type f ! -name MANIFEST.sha256 -print0 | sort -z | xargs -0 sha256sum > MANIFEST.sha256 )
 chmod 600 "{BACKUP_PATH}/MANIFEST.sha256"
 ```
@@ -501,7 +501,7 @@ Any step-3 failure → FAIL row, count toward ≥5% threshold, do not `rm` / `mv
 
 ### Rollback policy
 
-If ≥5% of actions in ANY bucket fail, STOP after that bucket and report. Do NOT auto-rollback — the user decides via `/mp:restore`.
+If ≥5% of actions in ANY bucket fail, STOP after that bucket and report. Do NOT auto-rollback — the user decides via `/mempenny:restore`.
 
 ### Idempotent semantics
 

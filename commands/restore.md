@@ -1,5 +1,5 @@
 ---
-description: Restore a memory-dir backup created by /mp:clean. Lists available backups, asks which one, takes a safety snapshot of the current state, then restores.
+description: Restore a memory-dir backup created by /mempenny:clean. Lists available backups, asks which one, takes a safety snapshot of the current state, then restores.
 argument-hint: [<backup-name>|latest] [--dir <path>] [--lang <code>]
 ---
 
@@ -10,7 +10,7 @@ Restore a previously-taken memory backup. Safe by default: always takes a timest
 The user invoked this command with: $ARGUMENTS
 
 - **Positional arg** — a specific backup name (e.g., `memory.backup-20260417143052`) OR the literal word `latest`. If omitted, we'll list backups and prompt the user interactively.
-- `--dir <path>` — absolute path to the memory directory to restore INTO. If not set, auto-detect the current project's memory dir (same logic as `/mp:clean`).
+- `--dir <path>` — absolute path to the memory directory to restore INTO. If not set, auto-detect the current project's memory dir (same logic as `/mempenny:clean`).
 - `--lang <code>` — output language. Defaults to `MEMPENNY_LOCALE` or `en`.
 
 ## Step 2 — Load locale strings
@@ -47,9 +47,9 @@ if [ -L ~/.claude/mempenny.config.json ]; then
   echo "MEMPENNY_CONFIG_INVALID=symlink"
 fi
 ```
-If the block prints `MEMPENNY_CONFIG_INVALID=symlink`, STOP with `restore.no_config`. A symlink'd config is suspicious (an attacker may have redirected it); refuse to restore anything until the user investigates. Unlike `/mp:clean` (which falls through to first-run setup), `/mp:restore` has no safe fallback — aborting is correct.
+If the block prints `MEMPENNY_CONFIG_INVALID=symlink`, STOP with `restore.no_config`. A symlink'd config is suspicious (an attacker may have redirected it); refuse to restore anything until the user investigates. Unlike `/mempenny:clean` (which falls through to first-run setup), `/mempenny:restore` has no safe fallback — aborting is correct.
 
-Otherwise, Read `~/.claude/mempenny.config.json`. If the file does not exist, print `restore.no_config` and STOP — the user has never run `/mp:clean`, so there's nothing to restore.
+Otherwise, Read `~/.claude/mempenny.config.json`. If the file does not exist, print `restore.no_config` and STOP — the user has never run `/mempenny:clean`, so there's nothing to restore.
 
 Parse as JSON. If parsing fails, print `restore.no_config` and STOP.
 
@@ -60,7 +60,7 @@ Parse as JSON. If parsing fails, print `restore.no_config` and STOP.
   2. `backup_folder` must match the tight regex `^/[A-Za-z0-9/_.\- ]{1,4096}$` — the same tight regex as `--dir` validation. **C1 fix:** an earlier version used `^/[^\x00\n]{1,4096}$` which permitted shell metacharacters; a tampered config like `"backup_folder": "/tmp/x$(cmd)"` would have fired command substitution during the subsequent `realpath` call (double-quotes don't prevent `$(…)`). Reject such paths before any bash interpolation.
   3. Run `realpath "{backup_folder}"` via Bash (safe now that the regex is tight) and verify the resolved value still starts with `/` AND still matches the tight regex.
 
-  If any gate fails, print `restore.no_config` and STOP. Otherwise, hold the **realpath-resolved** value as `{BACKUP_ROOT}` and skip to Step 5. `/mp:restore` does **not** auto-migrate a v1 config to v2 — only `/mp:clean` writes the config. Restore is read-only.
+  If any gate fails, print `restore.no_config` and STOP. Otherwise, hold the **realpath-resolved** value as `{BACKUP_ROOT}` and skip to Step 5. `/mempenny:restore` does **not** auto-migrate a v1 config to v2 — only `/mempenny:clean` writes the config. Restore is read-only.
 
 - **v2 shape** (`"version": 2` + `memory_dirs` object): validate and look up per memory dir:
   1. Top-level must be a JSON object.
@@ -68,7 +68,7 @@ Parse as JSON. If parsing fails, print `restore.no_config` and STOP.
   3. `memory_dirs` must be an object.
   4. Every key and value in `memory_dirs` must match the tight regex `^/[A-Za-z0-9/_.\- ]{1,4096}$` (applies C1 to every entry in the map, not just one string).
   5. No key or value may contain `..` as a path segment.
-  6. Look up `{MEMORY_DIR}` (realpath-normalized from Step 3, no trailing slash) in `memory_dirs`. If no entry exists for this memory dir, print `restore.no_config_for_dir` (substituting `{dir}` with `{MEMORY_DIR}`) and STOP. The user has never run `/mp:clean` against this memory dir; there's no backup folder to restore from.
+  6. Look up `{MEMORY_DIR}` (realpath-normalized from Step 3, no trailing slash) in `memory_dirs`. If no entry exists for this memory dir, print `restore.no_config_for_dir` (substituting `{dir}` with `{MEMORY_DIR}`) and STOP. The user has never run `/mempenny:clean` against this memory dir; there's no backup folder to restore from.
   7. Run `realpath` on the looked-up value and verify the resolved value still starts with `/` and still matches the tight regex. If any check fails, print `restore.no_config` and STOP.
 
   Hold the **realpath-resolved** value as `{BACKUP_ROOT}`.
@@ -86,7 +86,7 @@ fi
 ls -1dt -- "{BACKUP_ROOT}/"memory.backup-* 2>/dev/null
 ```
 
-The `-t` flag sorts newest first. Each line is one backup directory. Valid backup names match `^memory\.backup-[0-9]{14}(-[0-9]+)?$` — the optional `-[0-9]+` suffix is a PID added by `/mp:clean` hardening.
+The `-t` flag sorts newest first. Each line is one backup directory. Valid backup names match `^memory\.backup-[0-9]{14}(-[0-9]+)?$` — the optional `-[0-9]+` suffix is a PID added by `/mempenny:clean` hardening.
 
 For each backup, capture:
 - **name** — basename (e.g., `memory.backup-20260417143052` or `memory.backup-20260417143052-12345`)
@@ -141,7 +141,7 @@ Print the list using `restore.header` and `restore.backup_entry` (substitute `{i
 Use `AskUserQuestion` to prompt with `restore.pick_prompt`. Options:
 - The top **10** backups as fixed options (labeled by name + date).
 - A fixed option `Cancel` that aborts — print `restore.cancelled` and STOP.
-- A fixed option `Show all / specify by name` — if selected, print the full backup list and instruct the user to re-invoke with the chosen name as a positional arg (e.g., `/mp:restore memory.backup-20260417143052`). Do NOT attempt free-text entry — `AskUserQuestion` is options-only.
+- A fixed option `Show all / specify by name` — if selected, print the full backup list and instruct the user to re-invoke with the chosen name as a positional arg (e.g., `/mempenny:restore memory.backup-20260417143052`). Do NOT attempt free-text entry — `AskUserQuestion` is options-only.
 
 Apply the validation block above to whatever name is ultimately chosen.
 
@@ -258,7 +258,7 @@ If counts don't match, leave the safety snapshot in place and print a loud warni
 ```
 WARNING: file count mismatch — backup had $BACKUP_COUNT files, restored dir has $RESTORED_COUNT.
 The safety snapshot is at $SAFETY — inspect manually before deleting it.
-Do NOT run /mp:restore again until you have verified the state.
+Do NOT run /mempenny:restore again until you have verified the state.
 ```
 
 Then STOP (do not print the normal Step 10 completion message).

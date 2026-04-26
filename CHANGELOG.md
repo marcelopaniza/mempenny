@@ -2,6 +2,21 @@
 
 All notable changes to MemPenny are documented here. This project follows [semantic versioning](https://semver.org/).
 
+## [0.7.0] — 2026-04-26
+
+Revert the v0.4.0 namespace abbreviation. Slash commands invoke as `/mempenny:…` again. The `mp` short prefix turned out to be unmemorable in practice — typing `mem<tab>` in the slash menu produced no completion, which negated the point of the abbreviation.
+
+### Changed (breaking)
+
+- **Plugin name `mp` → `mempenny`** in `.claude-plugin/plugin.json` and the marketplace plugin entry. Reinstall the plugin to pick up the new namespace.
+- **All slash commands re-namespaced from `/mp:…` to `/mempenny:…`.** Affected: `/mempenny:clean`, `/mempenny:restore`, `/mempenny:memory-triage`, `/mempenny:memory-apply`, `/mempenny:memory-distill`. Locale strings in `en`, `es`, `pt-BR` updated to match.
+
+### Notes
+
+- No behavioral, config, or backup format change. `~/.claude/mempenny.config.json` (the file name was always `mempenny`) and existing backup directories are untouched.
+- Migration: `/plugin uninstall mp@mempenny` then `/plugin install mempenny@mempenny`, or `/plugin update`.
+- README upgrade notice flipped to point users coming from 0.4.x–0.6.x at the new namespace.
+
 ## [0.6.0] — 2026-04-19
 
 Remove the optional downstream compressor hook from MemPenny's execution path. MemPenny now stays entirely within the delete / archive / distill / keep strategy hierarchy; any prose-level compression the user wants to do is on them to invoke separately.
@@ -181,7 +196,7 @@ Security-hardening release. No new features. Every finding from the full code-re
 - Symlink-safe restore: Step 6 + Step 9 in restore.md reject symlinks before any `cp -a`.
 
 ### Notes
-- Old backups created by `/mempenny:memory-apply` (date-only suffix, sibling path) are untouched and remain rollback-able by hand.
+- Old backups created by `/mp:memory-apply` (date-only suffix, sibling path) are untouched and remain rollback-able by hand.
 - No data migration needed.
 
 ## [0.3.0] — 2026-04-11

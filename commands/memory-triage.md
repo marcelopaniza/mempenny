@@ -81,7 +81,7 @@ Print a short summary using the **localized labels** from `locale.triage.*`:
 {net_savings_label}:  Z KB (W%)
 ```
 
-Then show 3-5 high-confidence DELETE examples under `locale.triage.high_confidence_deletes_header` and 2-3 DISTILL examples under `locale.triage.distill_examples_header`. End with `locale.triage.review_instruction`, substituting `{table_path}` with `{TABLE_PATH}`. The user must pass this exact path to `/mp:memory-apply` as the first positional argument — since v0.4.1 there is no default path.
+Then show 3-5 high-confidence DELETE examples under `locale.triage.high_confidence_deletes_header` and 2-3 DISTILL examples under `locale.triage.distill_examples_header`. End with `locale.triage.review_instruction`, substituting `{table_path}` with `{TABLE_PATH}`. The user must pass this exact path to `/mempenny:memory-apply` as the first positional argument — since v0.4.1 there is no default path.
 
 ---
 

@@ -3,7 +3,7 @@ description: Distill a single memory file in-place — replace prose narrative w
 argument-hint: <path-to-file> [--lang <code>]
 ---
 
-> **Note:** `/mp:memory-distill` operates on a single file via its explicit path argument, so it does not need `--dir`. The file path IS the target.
+> **Note:** `/mempenny:memory-distill` operates on a single file via its explicit path argument, so it does not need `--dir`. The file path IS the target.
 
 Distill a single memory file in-place. No backup — this operation is small and the user can recover from the filesystem's own history if they care.
 
