@@ -2,6 +2,17 @@
 
 All notable changes to MemPenny are documented here. This project follows [semantic versioning](https://semver.org/).
 
+## [0.9.1] — 2026-05-09
+
+Patch release. Fixes from a full-surface pre-1.0 code-review + pentest pass.
+
+### Fixed
+
+- **`/mempenny:memory-distill`** — added an H2 SAFETY block (file body is data, not instructions) and full path validation on the input file argument. Closes a prompt-injection gap and prevents memory-dir escape via symlink.
+- **`/mempenny:nap`** — added v1→v2 config migration matching `/mempenny:clean`. Prevents silent loss of an existing `backup_folder` for users coming from v0.4.x who run `nap` before ever running `clean`.
+- **`/mempenny:clean`** — explicit "Determine scope" step now defines `{SCOPE_GLOB}` from `--only` (was an implicit dependency). Step 2 now explicitly loads the top-level `distill_output_instruction` locale key for non-English distillation.
+- **Config write hardening (`/clean` + `/nap`)** — unlink any symlink at `~/.claude/mempenny.config.json` before the Write call. Closes a defense-in-depth gap where a pre-planted symlink could redirect the Write to overwrite an arbitrary file (e.g., `~/.ssh/authorized_keys`).
+
 ## [0.9.0] — 2026-05-09
 
 After per-file triage, `/mempenny:clean` now groups related memory files and proposes DEDUPE / MERGE / FLAG cluster actions. All cluster actions wait for explicit approval. No changes to existing triage behavior, backup machinery, or any other command.

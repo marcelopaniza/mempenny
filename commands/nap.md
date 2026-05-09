@@ -84,7 +84,22 @@ Per-memory-dir keying. `frequency` ∈ `{"daily", "weekly", "once"}`. `time` is 
 
 3. Parse as JSON. If parsing fails, treat as empty (warn the user, but proceed).
 
-4. **Validation (M1):**
+4. **v1→v2 migration (mirrors `/mempenny:clean` Step 4 migration block):**
+   Before running the v2 validation checks below, inspect the parsed JSON. If the top-level object contains `"version": 1` AND a string `backup_folder` (the legacy v0.4.x shape):
+   - Apply the C1 regex + realpath + regex re-check to `backup_folder`: it must be a string, match `^/[A-Za-z0-9/_.\- ]{1,4096}$`, and `realpath "{backup_folder}"` must resolve to a path that still matches the same regex. If any gate fails, treat the v1 config as unusable: warn the user, skip the migration, and fall through to first-run setup with `{ "version": 2, "memory_dirs": {}, "schedules": {} }` — DO NOT clobber `memory_dirs`.
+   - If all gates pass, build a v2 object in memory:
+     ```json
+     {
+       "version": 2,
+       "memory_dirs": { "<MEMORY_DIR>": "<realpath'd backup_folder from v1>" },
+       "schedules": {}
+     }
+     ```
+   - Persist immediately using the **Writing the config** block at the bottom of this file.
+   - Print: `Migrated ~/.claude/mempenny.config.json from v1 to v2 (per-memory-dir config).`
+   - Continue as if a valid v2 config was loaded all along.
+
+5. **Validation (M1):**
    - Top-level must be a JSON object.
    - `version` must be the integer `2`.
    - `memory_dirs` (if present) must be an object whose every key and value matches `^/[A-Za-z0-9/_.\- ]{1,4096}$`. No `..` segment in any key or value. **C1 fix from v0.4.1 still applies — every entry, not just one.**
@@ -218,8 +233,17 @@ Exit.
 ## Writing the config (upsert — preserves all other entries)
 
 1. Compute the absolute target path: `~/.claude/mempenny.config.json`.
-2. Write the full in-memory object using the Write tool. Every other key in `memory_dirs` and `schedules` must survive the write unchanged — only the `{MEMORY_DIR}` keys are added, replaced, or (for `--cancel`) removed.
-3. After writing, run `chmod 600 ~/.claude/mempenny.config.json` via Bash. **(L1)**
+2. Run the following bash block unconditionally before the Write call:
+   ```bash
+   # F-M2 escape closure: if the config path is a symlink (planted between
+   # read-time check and write), remove it before Write so we don't overwrite
+   # the symlink target.
+   if [ -L ~/.claude/mempenny.config.json ]; then
+     rm -f ~/.claude/mempenny.config.json
+   fi
+   ```
+3. Write the full in-memory object using the Write tool. Every other key in `memory_dirs` and `schedules` must survive the write unchanged — only the `{MEMORY_DIR}` keys are added, replaced, or (for `--cancel`) removed.
+4. After writing, run `chmod 600 ~/.claude/mempenny.config.json` via Bash. **(L1)**
 
 ## Notes for the implementer
 
