@@ -80,12 +80,36 @@
     "cancelled": "Restauración cancelada. Ningún archivo modificado.",
     "safety_retention_hint": "Las instantáneas de seguridad se acumulan con el tiempo. Ejecuta `ls -d {memory_dir}.pre-restore-*` periódicamente para verlas; elimina las de más de ~2 semanas si nada parece incorrecto."
   },
+  "nap": {
+    "prompt_backup_folder": "¿Carpeta de respaldo para este directorio de memoria?",
+    "option_use_default_backup": "Usar predeterminada: {path}",
+    "option_custom_path": "Ruta personalizada",
+    "option_chat": "Hablemos de esto",
+    "access_ok": "Carpeta con permisos de escritura.",
+    "prompt_frequency": "¿Frecuencia?",
+    "option_freq_daily": "Diaria",
+    "option_freq_weekly": "Semanal",
+    "option_freq_once": "Una vez",
+    "prompt_time": "¿Hora de la siesta (HH:MM, tu hora local)?",
+    "option_use_default_time": "Usar predeterminada: {time}",
+    "option_custom_time": "Hora personalizada",
+    "scheduled_confirmation": "Programado: {frequency} a las {time}. Usa créditos de Claude en cada ejecución.",
+    "updated_confirmation": "Programación actualizada: {frequency} a las {time}. Usa créditos de Claude en cada ejecución.",
+    "remove_hint": "/mempenny:nap --cancel para deshacer.",
+    "cancelled_confirmation": "Programación de siesta eliminada para este directorio de memoria.",
+    "list_header": "Programaciones de siesta",
+    "list_empty": "No hay programaciones de siesta configuradas.",
+    "list_entry": "  {dir} → {frequency} a las {time}",
+    "aborted": "Cancelado. No se modificó nada."
+  },
   "errors": {
     "memory_dir_not_found": "No se pudo localizar el directorio de auto-memoria. Proporciona la ruta absoluta.",
     "table_not_found": "Tabla de triaje no encontrada en {path}. Ejecuta `/mempenny:memory-triage` primero, luego pasa la ruta de la tabla impresa como primer argumento a `/mempenny:memory-apply`.",
     "backup_failed": "Fallo al crear el respaldo. DETENIENDO. No se modificó ningún archivo.",
     "locale_missing": "Locale '{lang}' no encontrado. Volviendo al inglés. Envía un PR de traducción en https://github.com/marcelopaniza/mempenny/tree/main/locales",
     "backup_folder_invalid": "La ruta de la carpeta de respaldo debe ser absoluta y con permisos de escritura: {path}",
-    "backup_not_found": "Respaldo no encontrado: {name}"
+    "backup_not_found": "Respaldo no encontrado: {name}",
+    "nap_time_invalid": "La hora debe estar en formato HH:MM (24 horas). Recibido: {value}",
+    "nap_no_schedule_for_dir": "No hay programación de siesta para este directorio de memoria."
   }
 }

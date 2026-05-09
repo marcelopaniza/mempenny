@@ -80,12 +80,36 @@
     "cancelled": "Restauração cancelada. Nenhum arquivo alterado.",
     "safety_retention_hint": "Os snapshots de segurança se acumulam ao longo do tempo. Execute `ls -d {memory_dir}.pre-restore-*` periodicamente para ver; apague os com mais de ~2 semanas se nada parecer errado."
   },
+  "nap": {
+    "prompt_backup_folder": "Pasta de backup para este diretório de memória?",
+    "option_use_default_backup": "Usar padrão: {path}",
+    "option_custom_path": "Caminho personalizado",
+    "option_chat": "Vamos conversar sobre isso",
+    "access_ok": "Pasta gravável.",
+    "prompt_frequency": "Frequência?",
+    "option_freq_daily": "Diária",
+    "option_freq_weekly": "Semanal",
+    "option_freq_once": "Uma vez",
+    "prompt_time": "Hora da soneca (HH:MM, seu horário local)?",
+    "option_use_default_time": "Usar padrão: {time}",
+    "option_custom_time": "Horário personalizado",
+    "scheduled_confirmation": "Agendado: {frequency} às {time}. Usa créditos do Claude em cada execução.",
+    "updated_confirmation": "Agendamento atualizado: {frequency} às {time}. Usa créditos do Claude em cada execução.",
+    "remove_hint": "/mempenny:nap --cancel para desfazer.",
+    "cancelled_confirmation": "Agendamento de soneca removido para este diretório de memória.",
+    "list_header": "Agendamentos de soneca",
+    "list_empty": "Nenhum agendamento de soneca configurado.",
+    "list_entry": "  {dir} → {frequency} às {time}",
+    "aborted": "Cancelado. Nada foi modificado."
+  },
   "errors": {
     "memory_dir_not_found": "Não foi possível localizar o diretório de auto-memória. Forneça o caminho absoluto.",
     "table_not_found": "Tabela de triagem não encontrada em {path}. Execute `/mempenny:memory-triage` primeiro, depois passe o caminho da tabela impresso como primeiro argumento para `/mempenny:memory-apply`.",
     "backup_failed": "Falha ao criar backup. PARANDO. Nenhum arquivo foi modificado.",
     "locale_missing": "Locale '{lang}' não encontrado. Voltando para inglês. Envie um PR de tradução em https://github.com/marcelopaniza/mempenny/tree/main/locales",
     "backup_folder_invalid": "O caminho da pasta de backup deve ser absoluto e gravável: {path}",
-    "backup_not_found": "Backup não encontrado: {name}"
+    "backup_not_found": "Backup não encontrado: {name}",
+    "nap_time_invalid": "A hora deve estar no formato HH:MM (24 horas). Recebido: {value}",
+    "nap_no_schedule_for_dir": "Nenhum agendamento de soneca para este diretório de memória."
   }
 }

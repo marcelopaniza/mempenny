@@ -54,6 +54,21 @@ Lists backups, you pick one. The current state is snapshotted first, so the rest
 - `/mempenny:memory-triage [--dir <path>] [--only <glob>] [--lang <code>]` — dry-run triage. Produces a markdown classification table at a private `mktemp` path with permissions `600`. No writes.
 - `/mempenny:memory-apply <table-file> [--dir <path>] [--lang <code>]` — applies a previously approved triage table. Table path is required; pass the path printed by `/mempenny:memory-triage`. Creates a backup before modifying anything.
 - `/mempenny:memory-distill <file> [--lang <code>]` — one-off distillation of a single file. Interactive: shows the proposal, asks to apply / skip / edit.
+- `/mempenny:nap [--cancel | --list] [--dir <path>] [--lang <code>]` — schedule `/mempenny:clean` to run daily / weekly / once at a chosen time. See "Scheduling with `/mempenny:nap`" below.
+
+## Scheduling with `/mempenny:nap`
+
+Schedule `/mempenny:clean` to run automatically. The hook installs with the plugin — never modifies your `~/.claude/settings.json`.
+
+```
+/mempenny:nap                 # configure: backup folder → frequency → time
+/mempenny:nap --list          # show all configured schedules
+/mempenny:nap --cancel        # remove the schedule for this memory dir
+```
+
+Three questions and you're done. Nap fires the next time you open Claude Code in this project after the scheduled time — the cleanup itself is the same `/mempenny:clean` you already trust, with the same dry-run, the same "Yes / No / Show full" gate, and the same backup before any change. Works with whatever auth Claude Code already uses — OAuth, API key, otherwise. **Uses Claude credits per fire** (same as a manual `/clean`).
+
+Cross-platform: Linux + macOS for now. Windows support deferred.
 
 ## Flags on `/mempenny:clean`
 

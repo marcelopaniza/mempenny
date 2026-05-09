@@ -2,6 +2,29 @@
 
 All notable changes to MemPenny are documented here. This project follows [semantic versioning](https://semver.org/).
 
+## [0.8.0] — 2026-05-09
+
+Add `/mempenny:nap` — schedule `/mempenny:clean` to run on a recurring basis. Pure scheduling: no new triage logic, no consolidation, no auto-apply path. Existing commands unchanged.
+
+### Added
+
+- **`/mempenny:nap`** — three-question configure flow: backup folder → frequency (daily / weekly / once) → time (default `03:00` local). Persists into a new additive `schedules` top-level section in `~/.claude/mempenny.config.json`. `version` stays `2`. Every prompt offers a "Let's chat about this" option so the user can ask questions instead of being forced to pick.
+- **`/mempenny:nap --list`** — print all configured schedules.
+- **`/mempenny:nap --cancel`** — remove the schedule entry for the current memory dir.
+- **Plugin-shipped `SessionStart` hook** at `hooks/hooks.json` + `hooks/nap-check.sh`. Auto-active for every user who installs MemPenny — never touches the user's `~/.claude/settings.json`. Reads the schedule from config, checks a per-memory-dir state file at `${CLAUDE_PLUGIN_DATA}/nap-<sha1-12>.last`, emits a `hookSpecificOutput.additionalContext` payload only when nap is due (after the scheduled time today AND not already fired according to frequency rules). Defensive bash — every potentially-failing step ends with `|| exit 0` so a broken hook can never block session start.
+- **Locale strings** for nap added to `en`, `es`, `pt-BR` (75 keys → 97 keys, parity preserved).
+- **README section** "Scheduling with `/mempenny:nap`".
+
+### Notes
+
+- **Auth-agnostic.** Nap runs inside whatever interactive Claude Code session the user opens, regardless of OAuth vs API key. The hook never invokes the `claude` CLI itself.
+- **No `--yes` flag on `/clean`.** Nap's mechanism is the model invoking `mempenny:clean` via the `Skill` tool inside the user's REPL session — `/clean`'s existing "Yes / No / Show full" gate is preserved because the user is in the REPL when nap fires.
+- **Uses Claude credits per fire** — same as a manual `/clean`. Disclosed at scheduling time and in the README.
+- **Linux + macOS** for v0.8.0. Windows support deferred.
+- **Frequency / time override flags** (`--time`, `--frequency`) deferred to v0.9.0 to keep the v0.8.0 surface minimal.
+- **Known limitation:** if you open two Claude Code sessions for the same project at the same moment, both `SessionStart` hook runs can pass the "haven't fired today" check before either writes the state file, resulting in two `additionalContext` payloads and (potentially) two `/clean` invocations. The double-run is harmless — `/clean` is idempotent — but it's a correctness wart. Cross-platform `flock` would fix it; deferred until a real user reports actual double-fires.
+- No changes to `/clean`, `/restore`, `/memory-triage`, `/memory-apply`, `/memory-distill`. No changes to backup format. No changes to privacy guarantees beyond a small note about the new local state file in `$CLAUDE_PLUGIN_DATA`.
+
 ## [0.7.0] — 2026-04-26
 
 Revert the v0.4.0 namespace abbreviation. Slash commands invoke as `/mempenny:…` again. The `mp` short prefix turned out to be unmemorable in practice — typing `mem<tab>` in the slash menu produced no completion, which negated the point of the abbreviation.

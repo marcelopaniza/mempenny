@@ -80,12 +80,36 @@
     "cancelled": "Restore cancelled. No files changed.",
     "safety_retention_hint": "Safety snapshots accumulate over time. Run `ls -d {memory_dir}.pre-restore-*` periodically to see them; delete ones older than ~2 weeks if nothing feels wrong."
   },
+  "nap": {
+    "prompt_backup_folder": "Backup folder for this memory dir?",
+    "option_use_default_backup": "Use default: {path}",
+    "option_custom_path": "Custom path",
+    "option_chat": "Let's chat about this",
+    "access_ok": "Folder writable.",
+    "prompt_frequency": "Frequency?",
+    "option_freq_daily": "Daily",
+    "option_freq_weekly": "Weekly",
+    "option_freq_once": "Once",
+    "prompt_time": "Nap time (HH:MM, your local time)?",
+    "option_use_default_time": "Use default: {time}",
+    "option_custom_time": "Custom time",
+    "scheduled_confirmation": "Scheduled: {frequency} at {time}. Uses Claude credits per run.",
+    "updated_confirmation": "Schedule updated: {frequency} at {time}. Uses Claude credits per run.",
+    "remove_hint": "/mempenny:nap --cancel to undo.",
+    "cancelled_confirmation": "Removed nap schedule for this memory dir.",
+    "list_header": "Nap schedules",
+    "list_empty": "No nap schedules configured.",
+    "list_entry": "  {dir} → {frequency} at {time}",
+    "aborted": "Cancelled. Nothing changed."
+  },
   "errors": {
     "memory_dir_not_found": "Could not locate the auto-memory directory. Please supply the absolute path.",
     "table_not_found": "Triage table not found at {path}. Run `/mempenny:memory-triage` first, then pass the printed table path as the first argument to `/mempenny:memory-apply`.",
     "backup_failed": "Backup creation failed. STOPPING. No files were modified.",
     "locale_missing": "Locale '{lang}' not found. Falling back to English. Submit a translation PR at https://github.com/marcelopaniza/mempenny/tree/main/locales",
     "backup_folder_invalid": "Backup folder path must be absolute and writable: {path}",
-    "backup_not_found": "Backup not found: {name}"
+    "backup_not_found": "Backup not found: {name}",
+    "nap_time_invalid": "Time must be HH:MM in 24-hour format. Got: {value}",
+    "nap_no_schedule_for_dir": "No nap schedule for this memory dir."
   }
 }
