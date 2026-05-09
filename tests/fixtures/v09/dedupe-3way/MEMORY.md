@@ -1,0 +1,3 @@
+- [feedback_blueTrail_retry_strategy_2026-04-01.md](feedback_blueTrail_retry_strategy_2026-04-01.md) — BlueTrail API: use exponential backoff with jitter (2026-04-01, definitive decision)
+- [feedback_blueTrail_retry_strategy_2026-03-15.md](feedback_blueTrail_retry_strategy_2026-03-15.md) — BlueTrail API: abandon fixed-interval polling after March outage (2026-03-15)
+- [feedback_blueTrail_retry_strategy_2026-02-10.md](feedback_blueTrail_retry_strategy_2026-02-10.md) — BlueTrail retry loop needs review, no decision yet (2026-02-10)

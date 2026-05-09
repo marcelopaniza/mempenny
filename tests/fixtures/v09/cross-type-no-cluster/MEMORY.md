@@ -1,0 +1,2 @@
+- [feedback_blueTrail_auth_tokens.md](feedback_blueTrail_auth_tokens.md) — Team rule: BlueTrail service accounts must use 1-hour JWT expiry only
+- [project_blueTrail_auth_refactor.md](project_blueTrail_auth_refactor.md) — Project to replace hardcoded BlueTrail credentials with automated Vault-based JWT rotation

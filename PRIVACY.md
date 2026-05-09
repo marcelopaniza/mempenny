@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Last updated: 2026-05-09** (v0.8.0)
+**Last updated: 2026-05-09** (v0.9.0)
 
 MemPenny is a Claude Code plugin that operates entirely on your local filesystem. It collects, stores, and transmits **no data** to any external service.
 
@@ -12,6 +12,7 @@ MemPenny's slash commands (`/mempenny:clean`, `/mempenny:restore`, `/mempenny:me
 - **Writes** to files in that same directory: deletions (`rm`), moves to an `archive/` subdirectory, in-place body replacements for distilled files, and updates to `MEMORY.md`.
 - **Creates a full backup** before any modification. `/mempenny:clean` and `/mempenny:memory-apply` (when `~/.claude/mempenny.config.json` has an entry for the current memory directory) both write to the user-configured backup folder as `<backup-folder>/memory.backup-YYYYMMDDHHMMSS-PID/`; when no entry exists for the current memory dir, `/mempenny:memory-apply` falls back to `<memory-dir>.backup-YYYYMMDDHHMMSS-PID/` alongside the memory directory. Backup directories are created with permissions 700 and the config file is stored at 600 — readable only by your user account. Backups are never read after creation (except by `/mempenny:restore`, at your explicit request) and never transmitted.
 - **Writes a dry-run proposal table** to a private `mktemp`-generated path (e.g., `/tmp/mempenny-triage-XXXXXXXX.md`) with permissions `600`. A local temporary file used only for human review between a triage and an apply. (Before v0.4.1 this was a fixed `/tmp/triage_table.md` with default perms; moved to `mktemp 600` in v0.4.1 to prevent cross-user read/pre-poisoning on shared systems.)
+- **Writes a per-invocation cluster table** to a second private `mktemp`-generated path (e.g., `/tmp/mempenny-cluster-XXXXXXXX.md`) with permissions `600`. Created by `/mempenny:clean` v0.9.0+ during the cluster analysis phase; used only for the in-session approval flow and not persisted beyond the invocation.
 - **Writes a local config file** at `~/.claude/mempenny.config.json` on first run of `/mempenny:clean` in each memory directory (v0.5+ per-dir schema) — stores only the absolute paths to the memory directories you've cleaned and the absolute paths to the backup folders you chose for each. v0.8.0 adds an additive `schedules` top-level section storing per-memory-dir nap schedules (frequency + time) when you run `/mempenny:nap`. No identifiers, no telemetry, no paths outside what you explicitly entered. Upgrading from v0.4.x auto-migrates the legacy single-folder schema to the per-dir schema on first v0.5 run; no new data is added to the file beyond the paths you already supplied.
 - **Writes a small nap-state file** at `${CLAUDE_PLUGIN_DATA}/nap-<sha1-12>.last` (one per memory directory you've scheduled nap for). It stores a single line — the date nap last fired — and is used by the plugin's `SessionStart` hook to enforce daily / weekly / once frequency rules. Permissions `600`. Created only when you actually schedule a nap; never created otherwise.
 - **Ships a `SessionStart` hook** at `<plugin-root>/hooks/nap-check.sh` (active whenever MemPenny is installed). On every Claude Code session start, the hook reads `~/.claude/mempenny.config.json`, checks the state file above, and emits a JSON `additionalContext` payload **only when a nap is due**. The hook makes no network requests, does not modify any file outside the state directory above, and never touches your `~/.claude/settings.json`. Source is auditable in the same MIT-licensed repo. The hook script is defensive: any error path exits silently (a broken hook will never block session start).
@@ -52,4 +53,4 @@ Privacy questions, concerns, or reports: open an issue at https://github.com/mar
 
 ---
 
-*This policy applies to MemPenny versions 0.8.0 and later. It does not cover Claude Code itself or any other plugin you may have installed alongside MemPenny.*
+*This policy applies to MemPenny versions 0.9.0 and later. It does not cover Claude Code itself or any other plugin you may have installed alongside MemPenny.*
