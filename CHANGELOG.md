@@ -2,6 +2,18 @@
 
 All notable changes to MemPenny are documented here. This project follows [semantic versioning](https://semver.org/).
 
+## [0.9.2] — 2026-05-09
+
+Patch release.
+
+### Fixed
+
+- **`/mempenny:memory-distill`** — removed a dead `--dir` branch in the path-validation step. If it had ever been wired up without the full 4-check validation, the parent-confinement anchor would have become attacker-controlled. Caught by post-fix pentest before becoming exploitable.
+
+### Changed
+
+- **README rewrite** — `/mempenny:clean` and `/mempenny:nap` are now top-level features (nap moved out of Advanced). Cluster analysis (DEDUPE / MERGE / FLAG) is described upfront in the user experience. Dropped stale references to optional external compressors and to a pre-launch namespace migration note.
+
 ## [0.9.1] — 2026-05-09
 
 Patch release. Fixes from a full-surface pre-1.0 code-review + pentest pass.

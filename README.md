@@ -1,8 +1,8 @@
 # MemPenny
 
-**Keep your Claude Code auto-memory lean.**
+**Keep your Claude memory tight.**
 
-MemPenny triages your auto-memory directory: it deletes what's obsolete, archives what's historical, distills what's bloated, and leaves the rest alone.
+Triage, dedupe, and merge your auto-memory directory. Clean it now with `/mempenny:clean`, or schedule a nap with `/mempenny:nap`. Backup-first, always — every change waits for your nod.
 
 ## Install
 
@@ -12,53 +12,38 @@ MemPenny triages your auto-memory directory: it deletes what's obsolete, archive
 /reload-plugins
 ```
 
-Commands are namespaced under `mempenny:` — invoke them as `/mempenny:clean`, `/mempenny:restore`, etc.
-
-> **Upgrading from 0.4.x–0.6.x?** Reinstall — the namespace changed back from `/mp:…` to `/mempenny:…`. Existing backups and `~/.claude/mempenny.config.json` are untouched.
-
 ---
 
-# Default
+## `/mempenny:clean` — clean now
 
-**One command, end-to-end:**
+One command, end-to-end:
 
 ```
 /mempenny:clean
 ```
 
-That's it. On first run in a memory directory, MemPenny asks where to put backups (defaults to a sibling folder next to the memory dir) and remembers the choice. Every subsequent run in that directory is one command.
+What happens, in order:
 
-What `/mempenny:clean` does, in order:
+1. **Triages every memory file** — DELETE the obsolete, ARCHIVE the historical, DISTILL the bloated, KEEP the rest.
+2. **Looks across files** — proposes DEDUPE when duplicates show up, MERGE when files cover the same topic from different angles, FLAG when files contradict each other.
+3. **Shows you the proposal** — `Yes, apply` / `No, cancel` / `Show full table`. Nothing on disk changes until you say yes.
+4. **Backs up first** — every change goes through a timestamped backup. Reversible via `/mempenny:restore`.
 
-1. Runs a dry-run triage of the memory directory and prints a summary.
-2. Asks you to confirm (`Yes, apply` / `No, cancel` / `Show full table`).
-3. Creates a timestamped backup.
-4. Applies the approved changes (deletes, archives, distillations).
+First run in a memory directory asks where to keep backups (defaults to a sibling folder next to the memory dir) and remembers the choice. Every subsequent run is one command.
 
-**Roll back if something feels wrong:**
+**Roll back any time:**
 
 ```
 /mempenny:restore
 ```
 
-Lists backups, you pick one. The current state is snapshotted first, so the restore itself is reversible.
-
-**That's the whole story for most users.** The rest of this README is optional.
+Lists backups, you pick one. The current state is snapshotted first — the restore itself is reversible.
 
 ---
 
-# Advanced
+## `/mempenny:nap` — schedule it
 
-## Commands (manual phases)
-
-- `/mempenny:memory-triage [--dir <path>] [--only <glob>] [--lang <code>]` — dry-run triage. Produces a markdown classification table at a private `mktemp` path with permissions `600`. No writes.
-- `/mempenny:memory-apply <table-file> [--dir <path>] [--lang <code>]` — applies a previously approved triage table. Table path is required; pass the path printed by `/mempenny:memory-triage`. Creates a backup before modifying anything.
-- `/mempenny:memory-distill <file> [--lang <code>]` — one-off distillation of a single file. Interactive: shows the proposal, asks to apply / skip / edit.
-- `/mempenny:nap [--cancel | --list] [--dir <path>] [--lang <code>]` — schedule `/mempenny:clean` to run daily / weekly / once at a chosen time. See "Scheduling with `/mempenny:nap`" below.
-
-## Scheduling with `/mempenny:nap`
-
-Schedule `/mempenny:clean` to run automatically. The hook installs with the plugin — never modifies your `~/.claude/settings.json`.
+Set a frequency and a time. MemPenny runs `/clean` for you when the schedule fires.
 
 ```
 /mempenny:nap                 # configure: backup folder → frequency → time
@@ -66,19 +51,15 @@ Schedule `/mempenny:clean` to run automatically. The hook installs with the plug
 /mempenny:nap --cancel        # remove the schedule for this memory dir
 ```
 
-Three questions and you're done. Nap fires the next time you open Claude Code in this project after the scheduled time — the cleanup itself is the same `/mempenny:clean` you already trust, with the same dry-run, the same "Yes / No / Show full" gate, and the same backup before any change. Works with whatever auth Claude Code already uses — OAuth, API key, otherwise. **Uses Claude credits per fire** (same as a manual `/clean`).
+Three questions, no daemons, works with whatever auth Claude Code already uses — OAuth, API key, both fine. The hook installs with the plugin and never modifies your `~/.claude/settings.json`.
+
+Nap fires the next time you open Claude Code in this project after the scheduled time. Same `/clean` you already trust — same dry-run, same Yes / No / Show full gate, same backup-first behavior. **Uses Claude credits per fire** (same as a manual `/clean`).
 
 Cross-platform: Linux + macOS for now. Windows support deferred.
 
-## Smarter cleanup with `/mempenny:clean`
+---
 
-Starting in v0.9.0, `/mempenny:clean` does more than classify files one at a time. After the per-file triage pass (DELETE / ARCHIVE / DISTILL / KEEP — same as before), MemPenny looks across the surviving files and groups any that look related. For each group it proposes one of three actions:
-
-- **DEDUPE** — one or more files are duplicates; drop the redundant copies and keep the newest.
-- **MERGE** — several files cover the same topic; combine them into one.
-- **FLAG** — files in the group contradict each other; MemPenny marks them for your review rather than guessing.
-
-Cluster proposals only appear when MemPenny is highly confident in the grouping. Lower-confidence groupings are mentioned briefly in the summary so you're aware of them, but no action is proposed. Every cluster action goes through the same explicit approval gate as per-file actions — nothing happens until you say yes. Backup runs first, as always.
+# Advanced
 
 ## Flags on `/mempenny:clean`
 
@@ -86,6 +67,12 @@ Cluster proposals only appear when MemPenny is highly confident in the grouping.
 - `--only <glob>` — restrict triage scope by filename glob. Comma-separate multiple globs. Example: `--only "project_*_20*.md,reference_*.md"`.
 - `--lang <code>` — locale for user-visible output. Ships with `en`, `es`, `pt-BR`. Also honors `MEMPENNY_LOCALE`.
 - `--reconfigure` — re-prompt for this memory directory's backup folder (ignores the saved entry). Other projects' entries are left alone.
+
+## Manual phases
+
+- `/mempenny:memory-triage [--dir <path>] [--only <glob>] [--lang <code>]` — dry-run triage. Produces a markdown classification table at a private `mktemp` path with permissions `600`. No writes.
+- `/mempenny:memory-apply <table-file> [--dir <path>] [--lang <code>]` — applies a previously approved triage table. Table path is required; pass the path printed by `/mempenny:memory-triage`. Creates a backup before modifying anything.
+- `/mempenny:memory-distill <file> [--lang <code>]` — one-off distillation of a single file. Interactive: shows the proposal, asks to apply / skip / edit.
 
 ## Config file
 
@@ -101,32 +88,13 @@ MemPenny stores one small JSON file at `~/.claude/mempenny.config.json` mapping 
 }
 ```
 
-First run of `/mempenny:clean` in a memory directory prompts for the folder and adds an entry. Other entries are preserved on every write. The file is `chmod 600`.
-
-**Upgrading from v0.4.x** (single global `backup_folder`): the config is auto-migrated on first `/mempenny:clean` run. The old global path is preserved for the current memory directory only; other projects get their own prompt next time you clean them.
-
-## Pairing with a prose compressor
-
-MemPenny's strategy hierarchy stops at DISTILL. If you want to go further and compress the surviving prose (Markdown → validated YAML with round-trip review), that's a separate step you run yourself — MemPenny won't invoke another tool on your behalf.
-
-One option is [terse-md](https://github.com/marcelopaniza/terse-md), a standalone plugin:
-
-```
-/plugin marketplace add marcelopaniza/terse-md
-/plugin install terse-md@marcelopaniza-terse-md
-/reload-plugins
-
-# then, any time:
-/terse-md:run --all /path/to/memory
-```
-
-Terse-md is independent of MemPenny — its install, behavior, and privacy properties are its own. Use it, don't use it, or use a different compressor; the triage MemPenny did is still valid either way.
+First run of `/mempenny:clean` (or `/mempenny:nap`) in a memory directory prompts for the folder and adds an entry. Other entries are preserved on every write. The file is `chmod 600`.
 
 ## Rollback — manual
 
 Prefer `/mempenny:restore`. The paths below are for cases where that isn't an option.
 
-**Backup path for a memory dir with a v2 config entry** (v0.5+): `<backup-folder>/memory.backup-YYYYMMDDHHMMSS-PID/`. The backup folder is whatever you configured for this memory directory.
+**Backup path** (v0.5+): `<backup-folder>/memory.backup-YYYYMMDDHHMMSS-PID/`. The backup folder is whatever you configured for this memory directory.
 
 ```bash
 # !!! REPLACE every <PLACEHOLDER> before running.
@@ -141,8 +109,6 @@ rm -rf ~/.claude/projects/<PROJECT_ID>/memory/
 mv "<BACKUP_FOLDER>/memory.backup-<TIMESTAMP>-<PID>/" ~/.claude/projects/<PROJECT_ID>/memory/
 ```
 
-**If your config is still v1** (a v0.4.x `backup_folder` not yet migrated): the backup is at the global path. Read it with `jq -r .backup_folder ~/.claude/mempenny.config.json`. Running `/mempenny:clean` once auto-migrates to v2.
-
 **If there's no config entry for this memory dir** (no config file, or v2 with no entry): `/mempenny:memory-apply` falls back to the legacy sibling path `<memory-dir>.backup-YYYYMMDDHHMMSS-PID/`. This fallback is NOT found by `/mempenny:restore` — add a config entry by running `/mempenny:clean` once.
 
 ## Backup retention
@@ -150,12 +116,9 @@ mv "<BACKUP_FOLDER>/memory.backup-<TIMESTAMP>-<PID>/" ~/.claude/projects/<PROJEC
 Backups accumulate and are never auto-deleted. Periodically prune:
 
 ```bash
-# List all backups for a memory dir (v0.5+)
+# List all backups for a memory dir
 MEMDIR=~/.claude/projects/<project-id>/memory
 ls "$(jq -r --arg dir "$MEMDIR" '.memory_dirs[$dir]' ~/.claude/mempenny.config.json)"
-
-# v1 legacy config
-ls "$(jq -r .backup_folder ~/.claude/mempenny.config.json)"
 
 # Legacy sibling backups (if any)
 ls -d ~/.claude/projects/<project-id>/memory.backup-*/
@@ -177,26 +140,23 @@ Adding a new locale is a one-file PR: copy `locales/en/strings.json`, translate 
 DELETE    →  zero tokens, zero loss if truly obsolete
 ARCHIVE   →  move out of auto-load path, keep for forensics
 DISTILL   →  replace narrative with 1-3 lines of forward-looking truth
+DEDUPE    →  drop redundant copies, keep the newest
+MERGE     →  combine related files into one
+FLAG      →  alert you to contradicting files for manual review
 KEEP      →  leave alone
-COMPRESS  →  out of scope for MemPenny (run a prose compressor separately)
 ```
 
-MemPenny owns the first three. The fourth is the default. The fifth is optional and lives outside MemPenny.
+The first three are per-file decisions made on every run. DEDUPE / MERGE / FLAG are cross-file decisions added in v0.9. KEEP is the default; nothing is removed unless MemPenny is confident AND you approve.
 
 ## How it works
 
-All commands are prompt templates. `/mempenny:clean` orchestrates a triage subagent and an apply subagent back-to-back with a confirm gate between them, and remembers your backup folder **per memory directory** in `~/.claude/mempenny.config.json`. `/mempenny:restore` lists backups, takes a safety snapshot, and copies a chosen backup into place. `/mempenny:memory-triage` spawns a read-only `Explore` subagent. `/mempenny:memory-apply` spawns a general-purpose subagent for the `rm` / `mv` / body-replace operations after creating a backup. `/mempenny:memory-distill` is interactive and runs in the main conversation.
+Commands are markdown prompt templates that orchestrate AI subagents. `/mempenny:clean` runs a per-file triage subagent, then a cross-file cluster subagent, then an apply subagent — with a confirm gate before any write. `/mempenny:nap` is a small bash hook (`hooks/nap-check.sh`) shipped with the plugin that fires on `SessionStart`, checks your schedule, and if it's time, nudges Claude Code to run `/clean`. `/mempenny:restore` reads the backup index, takes a safety snapshot of the current state, and copies the chosen backup into place. Memory-* commands are the same building blocks exposed individually.
 
-No Python, no scripts, no daemon. The plugin is markdown command files, three JSON locale files, and a plugin manifest.
+The plugin is markdown command files, three JSON locale files, a small bash hook, and a plugin manifest. Everything stays on your machine — nothing is sent over the network.
 
 ## Requirements
 
-- Claude Code with auto-memory enabled
-- No other dependencies. (Terse-md is optional; its absence is a no-op.)
-
-## See also
-
-- [terse-md](https://github.com/marcelopaniza/terse-md) — a standalone Markdown → validated YAML compressor you can run separately after MemPenny's triage if you want prose-level compression. Independent plugin; not invoked by MemPenny.
+- Claude Code with auto-memory enabled.
 
 ## License
 
