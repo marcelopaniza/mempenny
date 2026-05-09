@@ -1,0 +1,2 @@
+- [project_orca_timeline.md](project_orca_timeline.md) — Orca pipeline rewrite: delivery milestones, dates, and risk flags
+- [project_orca_technical_approach.md](project_orca_technical_approach.md) — Orca pipeline rewrite: streaming architecture decisions and open questions

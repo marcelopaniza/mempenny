@@ -70,6 +70,16 @@ Three questions and you're done. Nap fires the next time you open Claude Code in
 
 Cross-platform: Linux + macOS for now. Windows support deferred.
 
+## Smarter cleanup with `/mempenny:clean`
+
+Starting in v0.9.0, `/mempenny:clean` does more than classify files one at a time. After the per-file triage pass (DELETE / ARCHIVE / DISTILL / KEEP — same as before), MemPenny looks across the surviving files and groups any that look related. For each group it proposes one of three actions:
+
+- **DEDUPE** — one or more files are duplicates; drop the redundant copies and keep the newest.
+- **MERGE** — several files cover the same topic; combine them into one.
+- **FLAG** — files in the group contradict each other; MemPenny marks them for your review rather than guessing.
+
+Cluster proposals only appear when MemPenny is highly confident in the grouping. Lower-confidence groupings are mentioned briefly in the summary so you're aware of them, but no action is proposed. Every cluster action goes through the same explicit approval gate as per-file actions — nothing happens until you say yes. Backup runs first, as always.
+
 ## Flags on `/mempenny:clean`
 
 - `--dir <path>` — operate on a memory directory other than the current project's.

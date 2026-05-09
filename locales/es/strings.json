@@ -61,7 +61,22 @@
     "auto_apply_note": "Aplicando cambios ahora. Se creará un respaldo en {path}.",
     "done_header": "Limpieza completada",
     "rollback_hint": "Revertir: /mempenny:restore  (o /mempenny:restore {backup_name})",
-    "backup_pruning_hint": "Los respaldos se acumulan con el tiempo. Ejecuta `ls {backup_root}` periódicamente y elimina los respaldos antiguos que ya no necesites."
+    "backup_pruning_hint": "Los respaldos se acumulan con el tiempo. Ejecuta `ls {backup_root}` periódicamente y elimina los respaldos antiguos que ya no necesites.",
+    "clusters_header": "CLUSTERS",
+    "found_label": "encontrados",
+    "actionable_label": "accionables",
+    "cluster_dedupe_label": "DEDUPE",
+    "cluster_merge_label": "MERGE",
+    "cluster_flag_label": "FLAG",
+    "cluster_files_label": "archivos",
+    "cluster_high_label": "HIGH confianza",
+    "cluster_keep_label": "Mantener",
+    "cluster_archive_label": "Archivar",
+    "cluster_source_label": "Origen",
+    "cluster_merged_label": "Archivo fusionado",
+    "cluster_review_manually_label": "Revisar manualmente",
+    "clusters_potential_review_note": "Algunos archivos parecían relacionados pero no alcanzaron el umbral de clúster de alta confianza; revísalos manualmente si deseas consolidarlos.",
+    "cluster_analysis_failed_warning": "El análisis de clústeres no se completó — omitiendo la Fase B. Las acciones de triaje por archivo continúan con normalidad."
   },
   "restore": {
     "header": "Respaldos disponibles",

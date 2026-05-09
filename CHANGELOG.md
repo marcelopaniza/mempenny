@@ -2,6 +2,21 @@
 
 All notable changes to MemPenny are documented here. This project follows [semantic versioning](https://semver.org/).
 
+## [0.9.0] — 2026-05-09
+
+After per-file triage, `/mempenny:clean` now groups related memory files and proposes DEDUPE / MERGE / FLAG cluster actions. All cluster actions wait for explicit approval. No changes to existing triage behavior, backup machinery, or any other command.
+
+### Added
+
+- **Cluster analysis in `/mempenny:clean`** — after per-file triage, MemPenny groups related memory files and proposes DEDUPE (drop duplicates, keep the newest), MERGE (combine related files into one), or FLAG (conflicting files flagged for manual review) actions. Every cluster action requires explicit confirmation before anything is modified.
+- New locale keys for the cluster summary section (`en`, `es`, `pt-BR` parity preserved).
+
+### Notes
+
+- Cluster proposals only appear when MemPenny is highly confident in the grouping. Lower-confidence groupings emit a brief informational note in the summary; no action is proposed for them.
+- Backup-first behavior is unchanged: every action goes through the same backup machinery, restoreable via `/mempenny:restore`.
+- No changes to `/mempenny:restore`, `/mempenny:memory-triage`, `/mempenny:memory-apply`, `/mempenny:memory-distill`, or `/mempenny:nap`. No changes to backup format or config schema.
+
 ## [0.8.0] — 2026-05-09
 
 Add `/mempenny:nap` — schedule `/mempenny:clean` to run on a recurring basis. Pure scheduling: no new triage logic, no consolidation, no auto-apply path. Existing commands unchanged.

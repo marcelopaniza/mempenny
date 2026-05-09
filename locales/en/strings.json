@@ -61,7 +61,22 @@
     "auto_apply_note": "Applying changes now. Backup will be created at {path}.",
     "done_header": "Clean complete",
     "rollback_hint": "Rollback: /mempenny:restore  (or /mempenny:restore {backup_name})",
-    "backup_pruning_hint": "Backups accumulate over time. Run `ls {backup_root}` periodically and delete old backups you no longer need."
+    "backup_pruning_hint": "Backups accumulate over time. Run `ls {backup_root}` periodically and delete old backups you no longer need.",
+    "clusters_header": "CLUSTERS",
+    "found_label": "found",
+    "actionable_label": "actionable",
+    "cluster_dedupe_label": "DEDUPE",
+    "cluster_merge_label": "MERGE",
+    "cluster_flag_label": "FLAG",
+    "cluster_files_label": "files",
+    "cluster_high_label": "HIGH confidence",
+    "cluster_keep_label": "Keep",
+    "cluster_archive_label": "Archive",
+    "cluster_source_label": "Source",
+    "cluster_merged_label": "Merged file",
+    "cluster_review_manually_label": "Review manually",
+    "clusters_potential_review_note": "Some files looked related but didn't reach high-confidence cluster threshold; review manually if you want to consolidate them.",
+    "cluster_analysis_failed_warning": "Cluster analysis did not complete — skipping Phase B. Per-file triage actions proceed normally."
   },
   "restore": {
     "header": "Available backups",

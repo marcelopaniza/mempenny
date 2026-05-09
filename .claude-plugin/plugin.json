@@ -1,7 +1,7 @@
 {
   "name": "mempenny",
   "description": "MemPenny — keep Claude Code auto-memory lean. Triage (delete / archive / distill) memory files without losing forward-looking truth.",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "author": {
     "name": "Marcelo Paniza",
     "url": "https://github.com/marcelopaniza"

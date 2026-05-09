@@ -1,0 +1,2 @@
+- [project_orca_status_a.md](project_orca_status_a.md) — Orca v2.3 in production, Fenix decommissioned, Flink chosen (as of 2026-03-01)
+- [project_orca_status_b.md](project_orca_status_b.md) — Orca v2.1 in staging, Fenix still live, ksqlDB chosen (as of 2026-03-01)
