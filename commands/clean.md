@@ -24,7 +24,7 @@ Before constructing the locale path, validate that `<lang>` matches the regex `^
 
 Read `${CLAUDE_PLUGIN_ROOT}/locales/<lang>/strings.json`. Fall back to `en` if the file is missing (warn with `errors.locale_missing`).
 
-You'll need `clean.*`, `triage.*`, `apply.*`, and `errors.*` keys.
+You'll need `clean.*`, `triage.*`, `apply.*`, and `errors.*` keys, and the top-level `distill_output_instruction` key (used as `{DISTILL_OUTPUT_INSTRUCTION}` in the triage and cluster-analysis subagent prompts).
 
 ## Step 3 — Locate the memory directory
 
@@ -93,7 +93,7 @@ One entry per memory directory. The key is the **realpath-normalized** absolute 
    - No key or value may contain `..` as a path segment.
 
 6. **Per-memory-dir lookup.** Using `{MEMORY_DIR}` from Step 3 (already realpath'd, no trailing slash) as the lookup key:
-   - **Entry found AND `--reconfigure` was NOT passed** → validate the value further: run `realpath "{entry-value}"` via Bash (safe now that the regex has screened out shell metacharacters), verify the resolved value still starts with `/` and still matches the tight regex, then verify the resolved path is writable with the writability check below. If all of that passes, use the realpath-resolved value as `{BACKUP_ROOT}` and skip to Step 5 of this command. If per-entry validation fails, fall through to first-run setup for this memory dir only — **do not touch other entries in the map**.
+   - **Entry found AND `--reconfigure` was NOT passed** → validate the value further: run `realpath "{entry-value}"` via Bash (safe now that the regex has screened out shell metacharacters), verify the resolved value still starts with `/` and still matches the tight regex, then verify the resolved path is writable with the writability check below. If all of that passes, use the realpath-resolved value as `{BACKUP_ROOT}` and skip to Step 6 of this command. If per-entry validation fails, fall through to first-run setup for this memory dir only — **do not touch other entries in the map**.
    - **Entry not found** → fall through to first-run setup (prompts only for this memory dir; other entries are left alone).
    - **`--reconfigure` was passed** → ignore the existing entry for `{MEMORY_DIR}`, fall through to first-run setup. Other entries are left alone.
 
@@ -150,7 +150,7 @@ Use the `AskUserQuestion` tool to get the answer. Present two options:
 
 Apply all of the following checks. If any fail, show `errors.backup_folder_invalid` with the offending path and re-prompt (up to the existing 3-retry cap, then abort with a clear message).
 
-1. **Regex gate:** the candidate path must match `^/[A-Za-z0-9/_.\- ]{1,4096}$` (alphanumerics, slash, underscore, dot, hyphen, space only). Reject anything else — this prevents shell-injection characters from reaching the `cp -a` in Step 9.
+1. **Regex gate:** the candidate path must match `^/[A-Za-z0-9/_.\- ]{1,4096}$` (alphanumerics, slash, underscore, dot, hyphen, space only). Reject anything else — this prevents shell-injection characters from reaching the `cp -a` in Step 11.
 2. **Realpath:** run `realpath "<candidate>"` via Bash. Use the resolved value for all subsequent steps and store this in the config (never store a symlink path).
 3. **Overlap check (H4):** reject if `realpath({BACKUP_ROOT})` has `realpath({MEMORY_DIR})` as a prefix, OR `realpath({MEMORY_DIR})` has `realpath({BACKUP_ROOT})` as a prefix. Shell check:
    ```bash
@@ -181,10 +181,27 @@ Once you have a valid `{BACKUP_ROOT}` (the realpath-resolved value), run the **W
    }
    ```
    Every other key in `memory_dirs` must survive the write unchanged. Only the `{MEMORY_DIR}` entry is added or replaced.
-4. Write the full object to `~/.claude/mempenny.config.json` using the Write tool.
-5. After writing, run `chmod 600 ~/.claude/mempenny.config.json` via Bash. **(L1)**
+4. Run the following bash block unconditionally before the Write call:
+   ```bash
+   # F-M2 escape closure: if the config path is a symlink (planted between
+   # read-time check and write), remove it before Write so we don't overwrite
+   # the symlink target.
+   if [ -L ~/.claude/mempenny.config.json ]; then
+     rm -f ~/.claude/mempenny.config.json
+   fi
+   ```
+5. Write the full object to `~/.claude/mempenny.config.json` using the Write tool.
+6. After writing, run `chmod 600 ~/.claude/mempenny.config.json` via Bash. **(L1)**
 
-## Step 5 — Show the run context
+## Step 5 — Determine scope from `--only`
+
+**Default scope:** every `.md` file directly under the memory directory, excluding `MEMORY.md`, any `*.original.md` backup files, and anything under `archive/`.
+
+If `--only <glob>` was provided, narrow to that pattern. Multiple globs can be comma-separated. The value was already validated in Step 1 against the L2 regex `^[A-Za-z0-9_.\-*?\[\]{},]{1,256}$` — use it as-is.
+
+Hold the resulting glob (or default `*.md`) as `{SCOPE_GLOB}` for the rest of the flow.
+
+## Step 6 — Show the run context
 
 Before doing anything destructive, print a 3-line context so the user knows exactly what they're about to clean:
 
@@ -194,7 +211,7 @@ Before doing anything destructive, print a 3-line context so the user knows exac
 {clean.running_triage}
 ```
 
-## Step 6 — Run triage (dry run)
+## Step 7 — Run triage (dry run)
 
 Spawn a triage subagent identical to `/mempenny:memory-triage` Step 5. Use:
 
@@ -211,7 +228,7 @@ TABLE_PATH=$(mktemp -t mempenny-triage-XXXXXXXX.md) && chmod 600 "$TABLE_PATH"
 
 Hold `{TABLE_PATH}` as the absolute path returned by `mktemp`. Write the returned table to `{TABLE_PATH}`.
 
-## Step 7 — Show the summary
+## Step 8 — Show the summary
 
 Print a short summary using `triage.*` labels (same format as `/mempenny:memory-triage` Step 6):
 
@@ -230,7 +247,7 @@ Print a short summary using `triage.*` labels (same format as `/mempenny:memory-
 
 Then show 3-5 high-confidence DELETE examples and 2-3 DISTILL examples (same as triage command).
 
-## Step 8 — Run cluster analysis (dry run)
+## Step 9 — Run cluster analysis (dry run)
 
 Spawn a cluster-analysis subagent with these parameters:
 
@@ -275,7 +292,7 @@ If MEDIUM or LOW-confidence groups were detected (even if no HIGH ones exist), a
 {clean.clusters_potential_review_note}
 ```
 
-## Step 9 — Confirm before applying
+## Step 10 — Confirm before applying
 
 Unlike `/mempenny:memory-triage`, this command auto-applies — but only after the user explicitly approves.
 
@@ -289,9 +306,9 @@ Match by **exact** label string — `AskUserQuestion` implicitly exposes an "Oth
 
 - `CANCEL` → STOP. Leave `{TABLE_PATH}` in place so the user can review manually and run `/mempenny:memory-apply {TABLE_PATH}` later. Print a short "cancelled, nothing changed" message including the literal path so the user can copy it. Exit.
 - `SHOW_TABLE` → Read `{TABLE_PATH}` and print it verbatim. If `{CLUSTER_TABLE_PATH}` is non-empty, print the heading `{clean.clusters_header}` (the locale key that renders as "CLUSTERS") followed by the contents of `{CLUSTER_TABLE_PATH}` verbatim — this gives the user a clear separator between the per-file triage table and the cluster table. Then re-invoke `AskUserQuestion` with the same question + option list. (The "Show" option is never recorded as a final user_choice.)
-- `APPLY` → proceed to the TOCTOU re-check below, then Step 10.
+- `APPLY` → proceed to the TOCTOU re-check below, then Step 11.
 
-**TOCTOU re-check before handing off to Step 10 (M2):** Before spawning the apply subagent, re-verify `{BACKUP_ROOT}` in Bash:
+**TOCTOU re-check before handing off to Step 11 (M2):** Before spawning the apply subagent, re-verify `{BACKUP_ROOT}` in Bash:
 
 ```bash
 # {BACKUP_ROOT} is the validated, realpath'd value from Step 4
@@ -305,7 +322,7 @@ case "$realpath_mem" in "$realpath_now"/*) echo "ABORT: overlap"; exit 1;; esac
 
 If either check fails, STOP. Do not spawn the subagent or modify any files.
 
-## Step 10 — Apply with timestamped backup
+## Step 11 — Apply with timestamped backup
 
 Before spawning the apply subagent, translate any confirmed cluster decisions into per-file rows and append them to the main triage table at `{TABLE_PATH}`. This keeps the apply subagent's interface identical to today (single table, known columns).
 
@@ -314,7 +331,7 @@ Before spawning the apply subagent, translate any confirmed cluster decisions in
 Before iterating, perform a TOCTOU re-check and structural pre-check on the cluster table:
 
 ```bash
-# M2 TOCTOU re-check on cluster table — defense in depth between Step 8 write and Step 10 read
+# M2 TOCTOU re-check on cluster table — defense in depth between Step 9 write and Step 11 read
 if [ -n "${CLUSTER_TABLE_PATH}" ]; then
   [ -f "${CLUSTER_TABLE_PATH}" ] && [ ! -L "${CLUSTER_TABLE_PATH}" ] || {
     # Cluster table missing or replaced — log warning and skip Phase B translation
@@ -346,7 +363,7 @@ Before iterating rows, validate that the cluster table parses as a markdown tabl
   ```
 
   **If EITHER validation step 3 or 5 fails:** append one ARCHIVE row per source file only (treating as deduplication without a keeper). Do NOT append a MERGE-WRITE row, do NOT create the merged file, and log a warning explaining which validation failed.
-- **FLAG cluster** — no rows generated. Record the flagged pair in a warnings list that is printed after apply completes (Step 11).
+- **FLAG cluster** — no rows generated. Record the flagged pair in a warnings list that is printed after apply completes (Step 12).
 - **KEEP-ALL cluster** — no rows generated.
 
 Only after appending cluster-derived rows, spawn the apply subagent.
@@ -358,7 +375,7 @@ Only after appending cluster-derived rows, spawn the apply subagent.
 ```
 
 Parameterize the apply subagent prompt with:
-- `{TABLE_PATH}` = the mktemp path from Step 6 (now augmented with cluster rows if any)
+- `{TABLE_PATH}` = the mktemp path from Step 7 (now augmented with cluster rows if any)
 - `{MEMORY_DIR}` = the target memory dir
 - `{BACKUP_PATH}` = `{BACKUP_ROOT}/memory.backup-$(date -u +%Y%m%d%H%M%S)-$$/`
   <!-- L2: UTC timestamp avoids timezone ambiguity; $$ (process ID) suffix prevents collision when two clean runs fire in the same second -->
@@ -369,7 +386,7 @@ Tell the user before kicking off: `clean.auto_apply_note` with `{path}` = `{BACK
 
 Run in foreground; wait for the result.
 
-## Step 11 — Report and hint at rollback
+## Step 12 — Report and hint at rollback
 
 Render the result using `apply.*` labels (same shape as `/mempenny:memory-apply` Step 4). Then print:
 
@@ -385,7 +402,7 @@ Then print the localized `clean.backup_pruning_hint` (substituting `{backup_root
 
 ---
 
-## Triage prompt (pass to the triage subagent in Step 6)
+## Triage prompt (pass to the triage subagent in Step 7)
 
 You're doing a **DRY-RUN** triage of a Claude Code auto-memory directory. We want to shrink it dramatically **without losing forward-looking truth**. No writes — your output is a proposal table for human review.
 
@@ -459,7 +476,7 @@ Net savings:  Z KB (W%)
 
 ---
 
-## Apply prompt (pass to the apply subagent in Step 10)
+## Apply prompt (pass to the apply subagent in Step 11)
 
 You are applying a pre-approved memory triage plan. The plan is a markdown table at `{TABLE_PATH}` with columns:
 
@@ -676,7 +693,7 @@ Bytes:
 
 ---
 
-## Cluster analysis prompt (pass to the cluster-analysis subagent in Step 8)
+## Cluster analysis prompt (pass to the cluster-analysis subagent in Step 9)
 
 You are performing a **DRY-RUN cluster analysis** of a Claude Code auto-memory directory. Your job is to identify groups of files that are duplicates, near-duplicates, or merge candidates. No writes — your output is a proposal table for human review.
 
