@@ -2,6 +2,16 @@
 
 All notable changes to MemPenny are documented here. This project follows [semantic versioning](https://semver.org/).
 
+## [1.0.1] — 2026-05-10
+
+Documentation and copy refinements. No code changes.
+
+### Changed
+
+- **README** — added "Leaves alone files and folders you mark off-limits." bullet to the main "What it does" list; moved the "Tell MemPenny what to leave alone" lock-controls section from main body into Advanced (between Manual phases and Config file).
+- **`plugin.json` description** — aligned with the locked README tagline (*"Your Claude memory companion. Turn it on…"*); fixes a wording drift between marketplace and docs.
+- **`SECURITY.md`** — tightened symlink claim to *"rejects symlinks at sensitive paths"*; more accurate description of the F-M2 reject pattern.
+
 ## [1.0.0] — 2026-05-10
 
 Stability lock release. **From 1.0 onward, breaking changes only on major bumps.** See README "Locked surface (v1.0+)" section for the stability contract.

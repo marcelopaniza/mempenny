@@ -21,28 +21,9 @@ What it does:
 - Trims bloated notes to one or two lines.
 - Spots duplicates and keeps the best one.
 - Flags files that contradict each other so you can sort them out.
+- Leaves alone files and folders you mark off-limits.
 
 Don't like a change? `/mempenny:restore` puts everything back. Backup-first, always.
-
-## Tell MemPenny what to leave alone
-
-Lock a whole folder — drop an empty `.mempenny-lock` file in it:
-
-```
-touch .mempenny-lock
-```
-
-`/clean` and `/nap` refuse to touch anything inside.
-
-Lock a single memory file — add this line at the top:
-
-```
-<!-- mempenny-lock -->
-```
-
-`/clean` treats it as KEEP and never proposes changes. Spacing inside the comment is flexible — `<!--mempenny-lock-->` and `<!-- mempenny-lock -->` both work.
-
-Remove the marker (or the line) to unlock. The same `.mempenny-fixture` marker also locks a folder — kept around for test fixtures.
 
 ## Install
 
@@ -114,6 +95,26 @@ Cross-platform: Linux + macOS for now. Windows support deferred.
 - `/mempenny:memory-triage [--dir <path>] [--only <glob>] [--lang <code>]` — dry-run triage. Produces a markdown classification table at a private `mktemp` path with permissions `600`. No writes.
 - `/mempenny:memory-apply <table-file> [--dir <path>] [--lang <code>]` — applies a previously approved triage table. Table path is required; pass the path printed by `/mempenny:memory-triage`. Creates a backup before modifying anything.
 - `/mempenny:memory-distill <file> [--lang <code>]` — one-off distillation of a single file. Interactive: shows the proposal, asks to apply / skip / edit.
+
+## Tell MemPenny what to leave alone
+
+Lock a whole folder — drop an empty `.mempenny-lock` file in it:
+
+```
+touch .mempenny-lock
+```
+
+`/clean` and `/nap` refuse to touch anything inside.
+
+Lock a single memory file — add this line at the top:
+
+```
+<!-- mempenny-lock -->
+```
+
+`/clean` treats it as KEEP and never proposes changes. Spacing inside the comment is flexible — `<!--mempenny-lock-->` and `<!-- mempenny-lock -->` both work.
+
+Remove the marker (or the line) to unlock. The same `.mempenny-fixture` marker also locks a folder — kept around for test fixtures.
 
 ## Config file
 
