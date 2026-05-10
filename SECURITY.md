@@ -21,7 +21,7 @@ Expect a first response within 7 days. Public disclosure happens after a fix shi
 
 ## Threat model
 
-MemPenny operates on the user's local machine, on files in `~/.claude/projects/<id>/memory/`. Memory file contents are treated as **untrusted data** — the plugin never executes content from a memory file, never follows symlinks at sensitive paths, and never accepts shell metacharacters in paths.
+MemPenny operates on the user's local machine, on files in `~/.claude/projects/<id>/memory/`. Memory file contents are treated as **untrusted data** — the plugin never executes content from a memory file, rejects symlinks at sensitive paths, and never accepts shell metacharacters in paths.
 
 Specific guardrails (codenames in source):
 

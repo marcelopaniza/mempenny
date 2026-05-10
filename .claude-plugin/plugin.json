@@ -1,7 +1,7 @@
 {
   "name": "mempenny",
-  "description": "MemPenny — your Claude memory companion. Turn auto-memory on, keep it lean, schedule the upkeep, reverse anything.",
-  "version": "1.0.0",
+  "description": "Your Claude memory companion. Turn it on, keep it lean, schedule the upkeep, reverse anything.",
+  "version": "1.0.1",
   "author": {
     "name": "Marcelo Paniza",
     "url": "https://github.com/marcelopaniza"
