@@ -125,6 +125,21 @@
     "backup_folder_invalid": "La ruta de la carpeta de respaldo debe ser absoluta y con permisos de escritura: {path}",
     "backup_not_found": "Respaldo no encontrado: {name}",
     "nap_time_invalid": "La hora debe estar en formato HH:MM (24 horas). Recibido: {value}",
-    "nap_no_schedule_for_dir": "No hay programación de siesta para este directorio de memoria."
+    "nap_no_schedule_for_dir": "No hay programación de siesta para este directorio de memoria.",
+    "backup_folder_in_tmp": "La carpeta de respaldo {path} está bajo /tmp/ o /var/tmp/, que el sistema limpia al reiniciar. Tus respaldos se perderían. Elige una ruta bajo tu directorio personal.",
+    "settings_json_symlink": "No se habilitará la auto-memoria: {path} es un enlace simbólico. Resuélvelo manualmente y vuelve a ejecutar."
+  },
+  "warnings": {
+    "memory_dir_in_tmp": "⚠ El directorio de memoria {path} está bajo /tmp/ — el sistema lo borra al reiniciar. Se continúa, pero tu memoria podría desaparecer. (Los respaldos seguirán seguros si tu carpeta de respaldo está en otro lugar.)",
+    "auto_memory_disabled": "ℹ La auto-memoria de Claude Code está actualmente deshabilitada ({reason}). Sin ella, MemPenny igual limpia tu directorio de memoria, pero Claude no lo cargará al iniciar la sesión.",
+    "auto_memory_unset_env_hint": "Para volver a habilitarla, primero quita la variable de entorno: `unset CLAUDE_CODE_DISABLE_AUTO_MEMORY` (o quítala de tu configuración de shell).",
+    "memory_dir_empty_with_auto_on": "ℹ El directorio de memoria {path} parece vacío. MemPenny configurará la carpeta de respaldo para que las próximas ejecuciones funcionen sin fricción cuando empiecen a aparecer archivos."
+  },
+  "prompts": {
+    "auto_memory_offer_enable_question": "¿Habilitar la auto-memoria ahora?"
+  },
+  "confirmations": {
+    "auto_memory_enabled": "✓ Auto-memoria habilitada en {path}. Las futuras sesiones de Claude Code cargarán los archivos de memoria automáticamente.",
+    "auto_memory_enable_layered_warning": "⚠ Nota: la configuración del proyecto o local sigue con autoMemoryEnabled en false ({paths}). El cambio a nivel de usuario no aplicará completamente hasta que se quiten esas capas o se ajusten a true."
   }
 }

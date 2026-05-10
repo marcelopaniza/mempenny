@@ -1,8 +1,28 @@
 # MemPenny
 
-**Keep your Claude memory tight.**
+**Your Claude memory companion. Turn it on, keep it lean, schedule the upkeep, reverse anything.**
 
-Triage, dedupe, and merge your auto-memory directory. Clean it now with `/mempenny:clean`, or schedule a nap with `/mempenny:nap`. Backup-first, always — every change waits for your nod.
+Claude's memory grows. Old notes pile up. The signal gets buried. MemPenny tidies it — and Claude's next session starts sharper.
+
+```
+Real example: 415 files, 2.4 MB on one project. 120 files, 960 KB on another.
+That's a lot of stale notes loading into every session.
+```
+
+Two ways:
+
+- **Clean now** — `/mempenny:clean`. One command. Minute or two. You see the proposal, say yes, done.
+- **Set a learning nap** — `/mempenny:nap`. Pick a schedule (daily / weekly / once). MemPenny tidies on your next Claude Code session — backup-first, no prompts, fully reversible. Each pass leaves Claude with cleaner notes to learn from next time.
+
+What it does:
+
+- Drops what's clearly stale.
+- Files away historical stuff (still searchable, just out of the way).
+- Trims bloated notes to one or two lines.
+- Spots duplicates and keeps the best one.
+- Flags files that contradict each other so you can sort them out.
+
+Don't like a change? `/mempenny:restore` puts everything back. Backup-first, always.
 
 ## Install
 
@@ -41,9 +61,9 @@ Lists backups, you pick one. The current state is snapshotted first — the rest
 
 ---
 
-## `/mempenny:nap` — schedule it
+## `/mempenny:nap` — schedule a learning nap
 
-Set a frequency and a time. MemPenny runs `/clean` for you when the schedule fires.
+Pick a frequency and a time. MemPenny runs `/clean --yes` for you when the schedule fires — no prompt, just a clean memory waiting for you.
 
 ```
 /mempenny:nap                 # configure: backup folder → frequency → time
@@ -51,9 +71,9 @@ Set a frequency and a time. MemPenny runs `/clean` for you when the schedule fir
 /mempenny:nap --cancel        # remove the schedule for this memory dir
 ```
 
-Three questions, no daemons, works with whatever auth Claude Code already uses — OAuth, API key, both fine. The hook installs with the plugin and never modifies your `~/.claude/settings.json`.
+Three questions, no daemons, works with whatever auth Claude Code already uses — OAuth or API key, both fine. The hook installs with the plugin and never modifies your `~/.claude/settings.json` — MemPenny only writes that file when you explicitly accept the auto-memory enable offer.
 
-Nap fires the next time you open Claude Code in this project after the scheduled time. Same `/clean` you already trust — same dry-run, same Yes / No / Show full gate, same backup-first behavior. **Uses Claude credits per fire** (same as a manual `/clean`).
+When the schedule fires, MemPenny runs `/mempenny:clean --yes` on your next Claude Code session in this project — no Yes/No prompt, just a clean memory waiting for you. Backup-first, fully reversible via `/mempenny:restore`. **Uses Claude credits per fire** (same as a manual `/clean`).
 
 Cross-platform: Linux + macOS for now. Windows support deferred.
 
@@ -67,6 +87,7 @@ Cross-platform: Linux + macOS for now. Windows support deferred.
 - `--only <glob>` — restrict triage scope by filename glob. Comma-separate multiple globs. Example: `--only "project_*_20*.md,reference_*.md"`.
 - `--lang <code>` — locale for user-visible output. Ships with `en`, `es`, `pt-BR`. Also honors `MEMPENNY_LOCALE`.
 - `--reconfigure` — re-prompt for this memory directory's backup folder (ignores the saved entry). Other projects' entries are left alone.
+- `--yes` — skip the confirmation gate; auto-apply after triage. Backup-first. This is what `/mempenny:nap` fires when the schedule runs.
 
 ## Manual phases
 
@@ -150,13 +171,13 @@ The first three are per-file decisions made on every run. DEDUPE / MERGE / FLAG 
 
 ## How it works
 
-Commands are markdown prompt templates that orchestrate AI subagents. `/mempenny:clean` runs a per-file triage subagent, then a cross-file cluster subagent, then an apply subagent — with a confirm gate before any write. `/mempenny:nap` is a small bash hook (`hooks/nap-check.sh`) shipped with the plugin that fires on `SessionStart`, checks your schedule, and if it's time, nudges Claude Code to run `/clean`. `/mempenny:restore` reads the backup index, takes a safety snapshot of the current state, and copies the chosen backup into place. Memory-* commands are the same building blocks exposed individually.
+Commands are markdown prompt templates that orchestrate AI subagents. `/mempenny:clean` runs a per-file triage subagent, then a cross-file cluster subagent, then an apply subagent — with a confirm gate before any write. Pass `--yes` to skip the confirm gate; this is what `/mempenny:nap` fires when the schedule runs. `/mempenny:nap` is a small bash hook (`hooks/nap-check.sh`) shipped with the plugin that fires on `SessionStart`, checks your schedule, and if it's time, runs `/mempenny:clean --yes` automatically. `/mempenny:restore` reads the backup index, takes a safety snapshot of the current state, and copies the chosen backup into place. Memory-* commands are the same building blocks exposed individually.
 
 The plugin is markdown command files, three JSON locale files, a small bash hook, and a plugin manifest. Everything stays on your machine — nothing is sent over the network.
 
 ## Requirements
 
-- Claude Code with auto-memory enabled.
+- Claude Code with auto-memory enabled. (MemPenny detects if it's off and offers to turn it on.)
 
 ## License
 
