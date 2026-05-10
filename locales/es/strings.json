@@ -127,7 +127,9 @@
     "nap_time_invalid": "La hora debe estar en formato HH:MM (24 horas). Recibido: {value}",
     "nap_no_schedule_for_dir": "No hay programación de siesta para este directorio de memoria.",
     "backup_folder_in_tmp": "La carpeta de respaldo {path} está bajo /tmp/ o /var/tmp/, que el sistema limpia al reiniciar. Tus respaldos se perderían. Elige una ruta bajo tu directorio personal.",
-    "settings_json_symlink": "No se habilitará la auto-memoria: {path} es un enlace simbólico. Resuélvelo manualmente y vuelve a ejecutar."
+    "settings_json_symlink": "No se habilitará la auto-memoria: {path} es un enlace simbólico. Resuélvelo manualmente y vuelve a ejecutar.",
+    "dir_locked": "El directorio de memoria {path} está bloqueado (marcador {marker} presente). MemPenny no modificará este directorio. Quita {marker} para desbloquearlo.",
+    "file_locked": "El archivo {path} contiene el marcador `<!-- mempenny-lock -->`. MemPenny no modificará este archivo. Quita la línea del marcador para desbloquearlo."
   },
   "warnings": {
     "memory_dir_in_tmp": "⚠ El directorio de memoria {path} está bajo /tmp/ — el sistema lo borra al reiniciar. Se continúa, pero tu memoria podría desaparecer. (Los respaldos seguirán seguros si tu carpeta de respaldo está en otro lugar.)",

@@ -24,6 +24,26 @@ What it does:
 
 Don't like a change? `/mempenny:restore` puts everything back. Backup-first, always.
 
+## Tell MemPenny what to leave alone
+
+Lock a whole folder — drop an empty `.mempenny-lock` file in it:
+
+```
+touch .mempenny-lock
+```
+
+`/clean` and `/nap` refuse to touch anything inside.
+
+Lock a single memory file — add this line at the top:
+
+```
+<!-- mempenny-lock -->
+```
+
+`/clean` treats it as KEEP and never proposes changes. Spacing inside the comment is flexible — `<!--mempenny-lock-->` and `<!-- mempenny-lock -->` both work.
+
+Remove the marker (or the line) to unlock. The same `.mempenny-fixture` marker also locks a folder — kept around for test fixtures.
+
 ## Install
 
 ```
@@ -33,6 +53,8 @@ Don't like a change? `/mempenny:restore` puts everything back. Backup-first, alw
 ```
 
 ---
+
+# Advanced
 
 ## `/mempenny:clean` — clean now
 
@@ -78,8 +100,6 @@ When the schedule fires, MemPenny runs `/mempenny:clean --yes` on your next Clau
 Cross-platform: Linux + macOS for now. Windows support deferred.
 
 ---
-
-# Advanced
 
 ## Flags on `/mempenny:clean`
 
@@ -174,6 +194,25 @@ The first three are per-file decisions made on every run. DEDUPE / MERGE / FLAG 
 Commands are markdown prompt templates that orchestrate AI subagents. `/mempenny:clean` runs a per-file triage subagent, then a cross-file cluster subagent, then an apply subagent — with a confirm gate before any write. Pass `--yes` to skip the confirm gate; this is what `/mempenny:nap` fires when the schedule runs. `/mempenny:nap` is a small bash hook (`hooks/nap-check.sh`) shipped with the plugin that fires on `SessionStart`, checks your schedule, and if it's time, runs `/mempenny:clean --yes` automatically. `/mempenny:restore` reads the backup index, takes a safety snapshot of the current state, and copies the chosen backup into place. Memory-* commands are the same building blocks exposed individually.
 
 The plugin is markdown command files, three JSON locale files, a small bash hook, and a plugin manifest. Everything stays on your machine — nothing is sent over the network.
+
+## Locked surface (v1.0+)
+
+From v1.0, MemPenny commits to semver. Breaking changes only on major bumps.
+
+**Stable:**
+- Command names and their argument shapes (`/mempenny:clean`, `/mempenny:nap`, `/mempenny:restore`, `/mempenny:memory-triage`, `/mempenny:memory-apply`, `/mempenny:memory-distill`)
+- Config schema v2 (`~/.claude/mempenny.config.json`)
+- Backup directory format (`<backup-folder>/memory.backup-YYYYMMDDHHMMSS-PID/`)
+- Locale key shape — new keys may be added; existing keys keep their meaning
+- Lock conventions: `.mempenny-lock`, `.mempenny-fixture`, `<!-- mempenny-lock -->`
+
+**Not stable (internal):**
+- Subagent prompts and rubric internals
+- Confidence tiers and overlap thresholds
+- Exact output wording (beyond locale keys)
+- Hardening implementation details
+
+If we need to change anything in Stable, it's a v2.0.
 
 ## Requirements
 

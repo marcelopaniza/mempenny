@@ -41,6 +41,20 @@ If all checks pass, use the resolved path as `{MEMORY_DIR}`. Verify it contains 
 
 **Regardless of whether the path came from `--dir` or auto-detection, apply the 4-check validation block above before using it as `{MEMORY_DIR}` (H5).** The auto-detected path can still be a symlink or have unexpected metacharacters if `<project-id>` derives from an attacker-influenced cwd. If validation fails on the auto-detected path, print `errors.memory_dir_not_found` and STOP.
 
+**Lock-marker check (hard abort):**
+
+```bash
+for marker in ".mempenny-lock" ".mempenny-fixture"; do
+  if [ -L "$resolved/$marker" ] || [ -e "$resolved/$marker" ]; then
+    # Print errors.dir_locked (substituting {path} with $resolved and {marker} with $marker)
+    print errors.dir_locked
+    exit / STOP
+  fi
+done
+```
+
+If a file or directory or symlink at either marker path exists at the resolved memory dir, print `errors.dir_locked` (substituting `{path}` with `$resolved` and `{marker}` with `$marker`) and STOP. No triage, no output file — the directory is off-limits.
+
 ## Step 4 — Determine scope
 
 **Default scope:** every `.md` file directly under the memory directory, excluding `MEMORY.md`, any `*.original.md` backup files, and anything under `archive/`.
@@ -151,6 +165,7 @@ Net savings:  Z KB (W%)
 
 ### Constraints
 
+- **Lock check (runs BEFORE rubric):** for each candidate file, check if its content (anywhere in the file) contains the `mempenny-lock` marker (spacing inside the comment is flexible). Use `grep -qE '<!--[[:space:]]*mempenny-lock[[:space:]]*-->' "$file"` or equivalent. If yes: classify as KEEP with reason **"user-locked (mempenny-lock)"** and SKIP all other rubric (no content analysis, no size-based DISTILL trigger). The locked file appears in the output table with Action=KEEP. Move to the next file.
 - Read every file before classifying it — don't classify from filename alone.
 - Distilled replacements must be tight: 1-3 sentences, factual, forward-looking. Preserve any URLs, file paths, commands, or version numbers mentioned verbatim — **do not translate technical terms** even when the output language is not English.
 - Preserve **"without loss"** as the top priority. Aggression is not a goal.
