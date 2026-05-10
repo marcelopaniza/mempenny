@@ -2,6 +2,22 @@
 
 All notable changes to MemPenny are documented here. This project follows [semantic versioning](https://semver.org/).
 
+## [1.0.0] — 2026-05-10
+
+Stability lock release. **From 1.0 onward, breaking changes only on major bumps.** See README "Locked surface (v1.0+)" section for the stability contract.
+
+### Added
+
+- **Folder lock** (`.mempenny-lock` marker file) — drop an empty `.mempenny-lock` in any memory directory; `/mempenny:clean`, `/mempenny:nap`, `/mempenny:memory-triage`, and `/mempenny:memory-apply` refuse to touch it. The existing `.mempenny-fixture` marker (used in `tests/fixtures/`) triggers the same abort — semantically distinct ("test data" vs. "user lockdown") but same runtime effect.
+- **File lock** (`<!-- mempenny-lock -->` HTML comment) — add the comment anywhere in a memory file (recommended at top); the triage subagent classifies it as KEEP with reason `"user-locked (mempenny-lock)"` without analyzing content; the cluster subagent excludes it from DEDUPE/MERGE/FLAG; `/mempenny:memory-distill` refuses to distill it.
+- **`SECURITY.md`** — vulnerability disclosure policy, supported versions, threat model, hardening summary, and lock controls.
+- **README "Locked surface (v1.0+)" section** — explicit list of what's stable (command names, config schema, backup format, locale shape, lock conventions) vs. internal/movable (subagent prompts, rubric internals, exact output wording).
+- **2 new locale keys** (en / es / pt-BR parity): `errors.dir_locked`, `errors.file_locked`.
+
+### Changed
+
+- **README restructure** — `/mempenny:clean` and `/mempenny:nap` deep-dive sections moved into Advanced (already covered upfront by the "Two ways" section). New main-body section "Tell MemPenny what to leave alone" introduces the lock controls in two short examples. Power users dig into Advanced for command details, flags, manual phases, config, locked surface, and how it works.
+
 ## [0.9.4] — 2026-05-09
 
 ### Added

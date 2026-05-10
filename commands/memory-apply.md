@@ -47,6 +47,20 @@ If all checks pass, use the resolved path as `{MEMORY_DIR}`. Otherwise, auto-det
 
 **Regardless of whether the path came from `--dir` or auto-detection, apply the 4-check validation block above before using it as `{MEMORY_DIR}` (H5).** If validation fails on the auto-detected path, print `errors.memory_dir_not_found` and STOP.
 
+**Lock-marker check (hard abort):**
+
+```bash
+for marker in ".mempenny-lock" ".mempenny-fixture"; do
+  if [ -L "$resolved/$marker" ] || [ -e "$resolved/$marker" ]; then
+    # Print errors.dir_locked (substituting {path} with $resolved and {marker} with $marker)
+    print errors.dir_locked
+    exit / STOP
+  fi
+done
+```
+
+If a file or directory or symlink at either marker path exists at the resolved memory dir, print `errors.dir_locked` (substituting `{path}` with `$resolved` and `{marker}` with `$marker`) and STOP. No backup, no apply — the directory is off-limits.
+
 **Compute the backup path (Issue D — unified convention):**
 
 Before spawning the subagent, determine `{BACKUP_PATH}` as follows:
@@ -173,6 +187,13 @@ set -euo pipefail
 
 # Sub-step 1: create backup
 mkdir -p "$(dirname "{BACKUP_PATH}")"
+# TOCTOU re-check: lock marker must still be absent immediately before backup
+for marker in ".mempenny-lock" ".mempenny-fixture"; do
+  if [ -L "{MEMORY_DIR}/$marker" ] || [ -e "{MEMORY_DIR}/$marker" ]; then
+    echo "ABORT: lock marker reappeared at {MEMORY_DIR}/$marker"
+    exit 1
+  fi
+done
 cp -a "{MEMORY_DIR}/" "{BACKUP_PATH}"
 chmod 700 "{BACKUP_PATH}"           # L1.2: cp -a inherits source umask (often 755/775); tighten to 700 on top dir
 chmod -R go= "{BACKUP_PATH}"        # L3: strip group+other perms from inner files too, not just top dir
@@ -241,8 +262,28 @@ If any step-3 check fails → FAIL the row, log `filename '<raw>' failed H1 fs-c
 2. Prepare `{MEMORY_DIR}/archive/` with two guards (the cross-fs check moved inline into step 4 per F3-M1 — avoids cross-bash-invocation shared state):
    - **F-M4 — reject archive-as-symlink:** `[ -L "{MEMORY_DIR}/archive" ] && { echo "ABORT: {MEMORY_DIR}/archive is a symlink — refusing to mv through it"; exit 1; }`. If it's a symlink, a filesystem-access attacker has set up an OOB-write primitive. Refuse; do NOT auto-remove.
    - `mkdir -p "{MEMORY_DIR}/archive/"`.
-3. For each DELETE row in the table: run the Filename validation block above. If it passes, verify the file still exists, then `rm` it. Track successes and failures.
-4. For each ARCHIVE row: run the Filename validation block above. If it passes, **re-assert archive/ invariants AND decide mv vs. cross-fs atomic fallback inline per row (F2-H1 TOCTOU close + F3-M1 no shared state):**
+3. For each DELETE row in the table: run the Filename validation block above. If it passes, run the defense-in-depth file-lock recheck below, verify the file still exists, then `rm` it. Track successes and failures.
+
+   ```bash
+   # Defense-in-depth: re-verify the source file is not file-locked (mempenny-lock comment).
+   # The triage subagent should have classified locked files as KEEP, but a bash check
+   # guarantees the contract even if the subagent missed the marker.
+   if grep -qE '<!--[[:space:]]*mempenny-lock[[:space:]]*-->' "$src" 2>/dev/null; then
+     echo "FAIL row: file is mempenny-locked, refusing to mutate $src"
+     # Mark row as APPLY_FAIL and continue to next row
+     continue
+   fi
+   ```
+
+4. For each ARCHIVE row: run the Filename validation block above. If it passes, run the defense-in-depth file-lock recheck below, then **re-assert archive/ invariants AND decide mv vs. cross-fs atomic fallback inline per row (F2-H1 TOCTOU close + F3-M1 no shared state):**
+
+   ```bash
+   # Defense-in-depth: re-verify the source file is not file-locked (mempenny-lock comment).
+   if grep -qE '<!--[[:space:]]*mempenny-lock[[:space:]]*-->' "$src" 2>/dev/null; then
+     echo "FAIL row: file is mempenny-locked, refusing to mutate $src"
+     continue
+   fi
+   ```
    ```bash
    # F2-H1 — pre-mv TOCTOU re-check
    [ -L "{MEMORY_DIR}/archive" ] && { echo "ABORT (pre-mv TOCTOU): archive became a symlink"; exit 1; }
@@ -258,7 +299,17 @@ If any step-3 check fails → FAIL the row, log `filename '<raw>' failed H1 fs-c
    fi
    ```
    Track successes and failures.
-5. For each DISTILL row:
+5. For each DISTILL row: run the defense-in-depth file-lock recheck below before writing:
+
+   ```bash
+   # Defense-in-depth: re-verify the source file is not file-locked (mempenny-lock comment).
+   if grep -qE '<!--[[:space:]]*mempenny-lock[[:space:]]*-->' "$src" 2>/dev/null; then
+     echo "FAIL row: file is mempenny-locked, refusing to mutate $src"
+     continue
+   fi
+   ```
+
+   Then:
    - Read the file.
    - **If it starts with `---` YAML frontmatter**, preserve the frontmatter block character-for-character and replace the body (everything after the closing `---`) with the distilled replacement text from the table.
    - **Else if it starts with a `#` markdown heading line**, preserve that heading line and replace everything after it with the distilled replacement text. This keeps the file's title visible when the original author used a markdown heading instead of frontmatter.

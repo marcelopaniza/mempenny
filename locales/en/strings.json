@@ -127,7 +127,9 @@
     "nap_time_invalid": "Time must be HH:MM in 24-hour format. Got: {value}",
     "nap_no_schedule_for_dir": "No nap schedule for this memory dir.",
     "backup_folder_in_tmp": "Backup folder {path} is under /tmp/ or /var/tmp/, which your system clears on reboot. Your backups would be lost. Pick a path under your home directory.",
-    "settings_json_symlink": "Refusing to enable auto-memory: {path} is a symlink. Resolve it manually, then re-run."
+    "settings_json_symlink": "Refusing to enable auto-memory: {path} is a symlink. Resolve it manually, then re-run.",
+    "dir_locked": "Memory directory {path} is locked ({marker} marker present). MemPenny will not modify this directory. Remove {marker} to unlock.",
+    "file_locked": "File {path} contains the `<!-- mempenny-lock -->` marker. MemPenny will not modify this file. Remove the marker line to unlock."
   },
   "warnings": {
     "memory_dir_in_tmp": "⚠ Memory directory {path} is under /tmp/ — your system clears that on reboot. Proceeding, but your memory could vanish. (Backups will still be safe if your backup folder is elsewhere.)",

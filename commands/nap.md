@@ -56,6 +56,20 @@ case "$resolved" in
 esac
 ```
 
+**Lock-marker check (hard abort):**
+
+```bash
+for marker in ".mempenny-lock" ".mempenny-fixture"; do
+  if [ -L "$resolved/$marker" ] || [ -e "$resolved/$marker" ]; then
+    # Print errors.dir_locked (substituting {path} with $resolved and {marker} with $marker)
+    print errors.dir_locked
+    exit / STOP
+  fi
+done
+```
+
+If a file or directory or symlink at either marker path exists at the resolved memory dir, print `errors.dir_locked` (substituting `{path}` with `$resolved` and `{marker}` with `$marker`) and STOP. No schedule write, no config write — the directory is off-limits.
+
 **If `--cancel` was NOT passed, run the auto-memory state detection below. (Skip on `--cancel` — the user is removing a schedule, not configuring one.)**
 
 **Auto-memory state detection (H5 post-check):**
