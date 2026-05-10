@@ -1,6 +1,6 @@
 ---
 description: One-shot memory cleanup — triage + apply in a single pass. First run asks where backups should live; subsequent runs reuse that folder automatically.
-argument-hint: [--dir <path>] [--only <glob>] [--lang <code>] [--reconfigure]
+argument-hint: [--dir <path>] [--only <glob>] [--lang <code>] [--reconfigure] [--yes]
 ---
 
 Clean the auto-memory directory in a single pass: triage → show summary → apply (with backup). Saves the user's backup folder preference on first run so subsequent runs are one command.
@@ -15,6 +15,7 @@ Parse optional arguments:
 - `--only <glob>` — scope filter. Multiple globs comma-separated. **L2 validation:** must match `^[A-Za-z0-9_.\-*?\[\]{},]{1,256}$` — no `/`, no space, no shell metacharacters.
 - `--lang <code>` — output language. If not passed, check `MEMPENNY_LOCALE`. Default `en`.
 - `--reconfigure` — ignore any saved backup folder and re-prompt the user. Useful if the saved path is wrong/moved.
+- `--yes` — skip the apply confirmation gate. `/clean` triages, runs cluster analysis, then auto-applies. Backup-first behavior unchanged. `/mempenny:restore` reverses any pass.
 
 ## Step 2 — Load locale strings
 
@@ -24,7 +25,7 @@ Before constructing the locale path, validate that `<lang>` matches the regex `^
 
 Read `${CLAUDE_PLUGIN_ROOT}/locales/<lang>/strings.json`. Fall back to `en` if the file is missing (warn with `errors.locale_missing`).
 
-You'll need `clean.*`, `triage.*`, `apply.*`, and `errors.*` keys, and the top-level `distill_output_instruction` key (used as `{DISTILL_OUTPUT_INSTRUCTION}` in the triage and cluster-analysis subagent prompts).
+You'll need `clean.*`, `triage.*`, `apply.*`, `errors.*`, `warnings.*`, `prompts.*`, and `confirmations.*` keys, and the top-level `distill_output_instruction` key (used as `{DISTILL_OUTPUT_INSTRUCTION}` in the triage and cluster-analysis subagent prompts).
 
 ## Step 3 — Locate the memory directory
 
@@ -36,13 +37,165 @@ You'll need `clean.*`, `triage.*`, `apply.*`, and `errors.*` keys, and the top-l
 3. Depth: reject if the realpath equals `/` or has fewer than 2 path components.
 4. Existence + not-a-symlink: `[ -d "$resolved" ] && [ ! -L "$resolved" ]`.
 
-If all checks pass, use the resolved path as `{MEMORY_DIR}`. Verify it exists and contains `.md` files.
+If all checks pass, use the resolved path as `{MEMORY_DIR}`. (An empty directory is allowed — the empty-dir check after Step 3 will warn but not block.)
 
 **Otherwise**, auto-detect `~/.claude/projects/<project-id>/memory/` from the current project's working directory mapping. If ambiguous, ask the user for the absolute path using `errors.memory_dir_not_found`.
 
 **Regardless of whether the path came from `--dir` or auto-detection, apply the 4-check validation block above before using it as `{MEMORY_DIR}` (H5).** If validation fails on the auto-detected path, print `errors.memory_dir_not_found` and STOP.
 
 Hold this as `{MEMORY_DIR}` for the rest of the flow.
+
+**Soft warn if memory directory is under `/tmp` or `/var/tmp` (H5 post-check):**
+
+```bash
+case "$resolved" in
+  /tmp/*|/tmp|/var/tmp/*|/var/tmp)
+    print warnings.memory_dir_in_tmp (substituting {path} with $resolved)
+    # PROCEED — warning only; cleaning an empty or volatile dir is still allowed
+    ;;
+esac
+```
+
+**Auto-memory state detection (H5 post-check):**
+
+Check whether Claude Code's auto-memory feature is enabled. If off, offer to turn it on for the user — they just ran `/clean`, which only matters if auto-memory loads what's left.
+
+    ```bash
+    auto_memory_off_reason=""
+    auto_memory_off_path=""
+
+    # 1. Env var override beats everything
+    if [ "${CLAUDE_CODE_DISABLE_AUTO_MEMORY:-}" = "1" ]; then
+      auto_memory_off_reason="env"
+      auto_memory_off_path="CLAUDE_CODE_DISABLE_AUTO_MEMORY=1"
+    fi
+
+    # 2. Settings layers (only if env var didn't already set off).
+    # Order: user → project → local. F-M2 symlink guard each — refuse to follow a symlink at read time.
+    if [ -z "$auto_memory_off_reason" ]; then
+      for settings_path in "$HOME/.claude/settings.json" "./.claude/settings.json" "./.claude/settings.local.json"; do
+        [ -L "$settings_path" ] && continue
+        [ -f "$settings_path" ] || continue
+        val=$(jq -r '.autoMemoryEnabled // empty' "$settings_path" 2>/dev/null)
+        if [ "$val" = "false" ]; then
+          auto_memory_off_reason="settings"
+          auto_memory_off_path="$settings_path"
+          break
+        fi
+      done
+    fi
+    ```
+
+**If `auto_memory_off_reason` is non-empty (auto-memory is off):**
+
+```bash
+# Strip newlines, CR, NUL, ANSI CSI; truncate at 512 chars
+sanitize_for_display() {
+  printf '%s' "$1" | tr -d '\000\r\n' | sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' | cut -c1-512
+}
+display_reason=$(sanitize_for_display "$auto_memory_off_path")
+```
+
+**If `--yes` was passed, skip the offer.** Print only the `warnings.auto_memory_disabled` warning (substituting `{reason}` with `$display_reason` — informational, useful in nap logs), set `auto_memory_now_on=false`, and continue with the normal flow. The user opted into non-interactive — do not block on a prompt.
+
+**If `auto_memory_off_reason="env"`,** print `warnings.auto_memory_disabled` (substituting `{reason}` with `$display_reason`) AND print `warnings.auto_memory_unset_env_hint`. Do NOT offer to enable (the env var overrides settings — a write would be futile). Set `auto_memory_now_on=false` and continue.
+
+**If `auto_memory_off_reason="settings"` (and `--yes` was NOT passed):**
+
+1. Print `warnings.auto_memory_disabled` (substituting `{reason}` with `$display_reason`).
+2. Use `AskUserQuestion` with question text `prompts.auto_memory_offer_enable_question` and exactly these three options:
+   - `Yes, enable` → user_choice = `ENABLE`
+   - `No, leave it off` → user_choice = `LEAVE`
+   - `Let's chat about this` → user_choice = `CHAT`
+3. Branching:
+   - **`ENABLE`** → run the **Enable auto-memory subroutine** below, then continue.
+   - **`LEAVE`** → continue with the normal flow. Auto-memory stays off; the empty-dir signal below is suppressed (the user knows the dir won't be auto-loaded — no need for a second warning).
+   - **`CHAT`** → briefly explain in the user's locale (≤2 sentences): auto-memory is what loads the files in this directory into Claude Code at the start of each session. Without it, MemPenny still cleans, but Claude won't read what's left. Re-prompt with the same options.
+   - **No answer (cancelled/dismissed)** → treat as `LEAVE`. (M3 — write nothing on cancel.)
+
+Set a flag `auto_memory_now_on` based on the outcome:
+- detection said on → `auto_memory_now_on=true`
+- detection said off + user chose `ENABLE` and the subroutine succeeded → `auto_memory_now_on=true`
+- otherwise → `auto_memory_now_on=false`
+
+**Empty-dir signal (only when auto-memory is on):**
+
+    ```bash
+    md_count=$(find "$resolved" -maxdepth 1 -name "*.md" ! -name "MEMORY.md" -type f 2>/dev/null | wc -l)
+    ```
+
+If `auto_memory_now_on` is true AND `md_count` is 0 → print `warnings.memory_dir_empty_with_auto_on` (substituting `{path}` with `$resolved`). Continue regardless.
+
+### Enable auto-memory subroutine
+
+Run only when the user chose `ENABLE` above.
+
+    ```bash
+    SETTINGS="$HOME/.claude/settings.json"
+
+    enable_failed=""
+
+    # F-M2 symlink guard — refuse to write through a symlink
+    if [ -L "$SETTINGS" ]; then
+      enable_failed=1
+      # Caller will print errors.settings_json_symlink with {path}=$SETTINGS
+    fi
+    ```
+
+If `$enable_failed` is set, print `errors.settings_json_symlink` (substituting `{path}` with `$SETTINGS`) and skip the rest of the subroutine. Do NOT continue to the write. Set `auto_memory_now_on=false`.
+
+Otherwise:
+
+1. **Backup if file exists:**
+       ```bash
+       if [ -f "$SETTINGS" ]; then
+         ts=$(date -u +%Y%m%d%H%M%S)
+         bak="$SETTINGS.bak-$ts-$$"
+         cp -a "$SETTINGS" "$bak"
+         chmod 600 "$bak"
+       fi
+       ```
+2. **Compute new content:**
+       ```bash
+       if [ -f "$SETTINGS" ] && jq empty "$SETTINGS" 2>/dev/null; then
+         new_content=$(jq '. + {autoMemoryEnabled: true}' "$SETTINGS")
+       else
+         new_content='{"autoMemoryEnabled": true}'
+       fi
+       ```
+3. **F-M2 escape closure: re-check just before Write, in case a symlink was planted between the initial check and now.**
+       ```bash
+       # F-M2 escape closure: re-check just before Write, in case a symlink was planted
+       # between the initial check and now.
+       if [ -L "$SETTINGS" ]; then
+         rm -f "$SETTINGS"
+       fi
+       ```
+4. **Write `$new_content`** to `$SETTINGS` using the Write tool.
+5. **Tighten permissions:** `chmod 600 "$SETTINGS"`.
+6. **Print `confirmations.auto_memory_enabled`** (substituting `{path}` with `$SETTINGS`).
+
+**Layered-override check (after enabling):**
+
+    ```bash
+    layered_off=""
+    for settings_path in "./.claude/settings.json" "./.claude/settings.local.json"; do
+      [ -L "$settings_path" ] && continue
+      [ -f "$settings_path" ] || continue
+      val=$(jq -r '.autoMemoryEnabled // empty' "$settings_path" 2>/dev/null)
+      if [ "$val" = "false" ]; then
+        if [ -n "$layered_off" ]; then
+          layered_off="$layered_off, $settings_path"
+        else
+          layered_off="$settings_path"
+        fi
+      fi
+    done
+    display_settings=$(sanitize_for_display "$SETTINGS")
+    display_layered_off=$(sanitize_for_display "$layered_off")
+    ```
+
+If `$layered_off` is non-empty, print `confirmations.auto_memory_enable_layered_warning` (substituting `{paths}` with `$display_layered_off`). Substitute `{path}` with `$display_settings` wherever it appears in `confirmations.auto_memory_enabled`.
 
 ## Step 4 — Load or create the config
 
@@ -160,6 +313,17 @@ Apply all of the following checks. If any fail, show `errors.backup_folder_inval
 4. **Depth check:** reject if the realpath equals `/`, has fewer than 2 path components (i.e., the basename is empty after removing the leading slash), OR (if `$HOME` is set and non-empty) equals `realpath $HOME`, OR (if `EUID == 0`) starts with `/root/`. The `$HOME` guard is conditional on the variable being set to avoid false-matching empty strings.
 5. **Writability:** `mkdir -p "{BACKUP_ROOT}" && touch "{BACKUP_ROOT}/.mempenny-write-test" && rm "{BACKUP_ROOT}/.mempenny-write-test"`.
 6. **Parent exists:** `[ -d "$(dirname "$resolved")" ]` — reject if the parent directory does not exist. Backup root must be created as a single new directory under an existing parent; MemPenny will not create a multi-level tree (prevents world-readable intermediate dirs when umask != 077).
+
+**Hard block if backup folder is under `/tmp` or `/var/tmp`:**
+
+```bash
+case "$realpath_backup" in
+  /tmp/*|/tmp|/var/tmp/*|/var/tmp)
+    print errors.backup_folder_in_tmp (substituting {path} with $realpath_backup)
+    re-prompt (existing 3-retry cap applies)
+    ;;
+esac
+```
 
 Once you have a valid `{BACKUP_ROOT}` (the realpath-resolved value), run the **Writing the config** block below, then confirm with `clean.config_saved` (substituting `{path}` with `~/.claude/mempenny.config.json`).
 
@@ -296,7 +460,9 @@ If MEDIUM or LOW-confidence groups were detected (even if no HIGH ones exist), a
 
 Unlike `/mempenny:memory-triage`, this command auto-applies — but only after the user explicitly approves.
 
-Call `AskUserQuestion` with question `"Apply these changes?"` and exactly these three options:
+**If `--yes` was parsed in Step 1**, skip the `AskUserQuestion` call entirely. Set `user_choice = APPLY` and proceed directly to the TOCTOU re-check + Step 11 below. Cluster-derived rows are still translated to per-file rows in Step 11 as normal — the only difference is the interactive gate is bypassed.
+
+**Otherwise**, call `AskUserQuestion` with question `"Apply these changes?"` and exactly these three options:
 
 - `Yes, apply` → user_choice = `APPLY`
 - `No, cancel` → user_choice = `CANCEL`

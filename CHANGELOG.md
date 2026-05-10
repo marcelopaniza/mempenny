@@ -2,6 +2,20 @@
 
 All notable changes to MemPenny are documented here. This project follows [semantic versioning](https://semver.org/).
 
+## [0.9.4] — 2026-05-09
+
+### Added
+
+- **`--yes` flag on `/mempenny:clean`** — skips the apply confirmation gate. Triage, cluster analysis, then auto-apply. Backup-first behavior unchanged; `/mempenny:restore` reverses any pass. Used by `/mempenny:nap` for non-interactive scheduled runs.
+- **`/tmp` protection** — `/mempenny:clean` and `/mempenny:nap` now hard-block configuring a backup folder under `/tmp/` or `/var/tmp/` (your system clears those on reboot — backups would be lost). Soft warning if the memory directory itself is under `/tmp/` (some users sandbox there intentionally; cleaning still works, but the memory itself is volatile).
+- **Auto-memory off detection + offer to enable** — `/mempenny:clean` and `/mempenny:nap` now check whether Claude Code's auto-memory is on (env var + user / project / local settings layers). If off, MemPenny prints a one-line note and offers to enable it directly in `~/.claude/settings.json` — explicit consent via Yes / No, leave off / Let's chat. The write is backup-first, F-M2 symlink-guarded, `chmod 600` after. If project or local settings still have `autoMemoryEnabled: false`, MemPenny tells you so the layered override is visible.
+- New locale keys for auto-memory detect+enable messaging and the `/tmp` protection messages (en / es / pt-BR parity).
+
+### Changed
+
+- **`/mempenny:nap` is now non-interactive by design.** When the schedule fires, the SessionStart hook nudges the model to invoke `/mempenny:clean --yes` — no Yes/No/Show full prompt during a nap pass. Rule-based, backup-first; `/mempenny:restore` is the rollback if anything looks off.
+- **README rewrite + repositioning** — MemPenny is now positioned as a Claude memory companion (detect / enable / triage / cluster / schedule / restore), not just an auto-memory cleaner. New tagline: *"Your Claude memory companion. Turn it on, keep it lean, schedule the upkeep, reverse anything."* Accessible voice, real before-numbers, no rubric leaks.
+
 ## [0.9.2] — 2026-05-09
 
 Patch release.

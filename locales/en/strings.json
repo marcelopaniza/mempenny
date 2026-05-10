@@ -125,6 +125,21 @@
     "backup_folder_invalid": "Backup folder path must be absolute and writable: {path}",
     "backup_not_found": "Backup not found: {name}",
     "nap_time_invalid": "Time must be HH:MM in 24-hour format. Got: {value}",
-    "nap_no_schedule_for_dir": "No nap schedule for this memory dir."
+    "nap_no_schedule_for_dir": "No nap schedule for this memory dir.",
+    "backup_folder_in_tmp": "Backup folder {path} is under /tmp/ or /var/tmp/, which your system clears on reboot. Your backups would be lost. Pick a path under your home directory.",
+    "settings_json_symlink": "Refusing to enable auto-memory: {path} is a symlink. Resolve it manually, then re-run."
+  },
+  "warnings": {
+    "memory_dir_in_tmp": "⚠ Memory directory {path} is under /tmp/ — your system clears that on reboot. Proceeding, but your memory could vanish. (Backups will still be safe if your backup folder is elsewhere.)",
+    "auto_memory_disabled": "ℹ Claude Code auto-memory is currently disabled ({reason}). Without it, MemPenny still cleans your memory directory, but Claude won't load it at session start.",
+    "auto_memory_unset_env_hint": "To re-enable, unset the env var first: `unset CLAUDE_CODE_DISABLE_AUTO_MEMORY` (or remove it from your shell config).",
+    "memory_dir_empty_with_auto_on": "ℹ Memory directory {path} looks empty. MemPenny will set up the backup folder so subsequent runs are seamless once files start landing here."
+  },
+  "prompts": {
+    "auto_memory_offer_enable_question": "Enable auto-memory now?"
+  },
+  "confirmations": {
+    "auto_memory_enabled": "✓ Auto-memory enabled in {path}. Future Claude Code sessions will load memory files automatically.",
+    "auto_memory_enable_layered_warning": "⚠ Note: project or local settings still set autoMemoryEnabled to false ({paths}). The user-level enable above won't fully apply until those layers are removed or set to true."
   }
 }

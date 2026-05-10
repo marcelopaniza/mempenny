@@ -84,7 +84,7 @@ chmod 600 "$STATE_FILE" 2>/dev/null || exit 0
 # safely. jq -n --arg performs proper JSON string escaping (quotes, backslashes,
 # control chars) — defense in depth even though all interpolated values have
 # already been C1-regex-validated above.
-ADDITIONAL_CONTEXT="MemPenny nap is due (scheduled $FREQUENCY at $TIME, local time). Please invoke /mempenny:clean now to process the memory directory $MEMORY_DIR. After /clean completes, suggest the user restart Claude Code (Ctrl+D, then claude again) so this session loads the freshened memory state."
+ADDITIONAL_CONTEXT="MemPenny nap is due (scheduled $FREQUENCY at $TIME, local time). Please invoke /mempenny:clean --yes now to process the memory directory $MEMORY_DIR — nap is non-interactive by design; backup is the safety net, /mempenny:restore reverses any pass. After /clean completes, suggest the user restart Claude Code (Ctrl+D, then claude again) so this session loads the freshened memory state."
 
 jq -nc \
   --arg ctx "$ADDITIONAL_CONTEXT" \
