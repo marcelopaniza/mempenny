@@ -2,6 +2,18 @@
 
 All notable changes to MemPenny are documented here. This project follows [semantic versioning](https://semver.org/).
 
+## [1.0.2] — 2026-05-12
+
+Triage rubric hardening + a worked case study.
+
+### Changed
+
+- **`commands/clean.md`** — added Step 4a to the cross-file cluster subagent rubric. Step 4a suppresses FLAG only in the narrow 2-file case where (a) exactly one file's YAML `description` field — parsed from the frontmatter block, not substring-scanned — case-insensitively matches `SUPERSEDED|DEPRECATED|REPLACED BY|OBSOLETE|RESOLVED — see`, AND (b) that file's first 20 body lines reference the other candidate by exact `.md` filename or `[[link]]`. Every more ambiguous case (3+ files, both stale, no cross-reference, keyword-only) still routes to FLAG. Hard rule 4 updated to match. Closes a false-positive FLAG documented in `docs/real-world-results.md`.
+
+### Added
+
+- **`docs/real-world-results.md`** — worked case study of a real second-pass `/mempenny:clean` run (424 → 227 files, ~789 KB freed, ~63%). Sanitized: no project, environment, or operational details. Honest about three patterns users will hit — FLAG false positives, DISTILL safety promotion to ARCHIVE, and dry-run vs. applied savings drift. Linked from README under the existing "Real example" callout.
+
 ## [1.0.1] — 2026-05-10
 
 Documentation and copy refinements. No code changes.

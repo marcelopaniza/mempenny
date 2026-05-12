@@ -9,6 +9,8 @@ Real example: 415 files, 2.4 MB on one project. 120 files, 960 KB on another.
 That's a lot of stale notes loading into every session.
 ```
 
+A worked case study of a second-pass run: [Real-world results](docs/real-world-results.md).
+
 Two ways:
 
 - **Clean now** — `/mempenny:clean`. One command. Minute or two. You see the proposal, say yes, done.
