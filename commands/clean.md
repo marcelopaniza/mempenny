@@ -916,7 +916,28 @@ For each candidate cluster (a group of 2 or more in-scope files):
 - `30–60%` overlap → KEEP-ALL (related but distinct — no action)
 - `<30%` overlap → not a cluster
 
-**Step 4 — Conflict scan.** Scan for contradictory factual claims across all files in the cluster: different versions of the same entity, different dates for the same event, conflicting decisions, different URLs for the same resource. If any contradiction is found → the cluster action is FLAG, regardless of Steps 3's overlap %.
+**Step 4 — Conflict scan.** Scan for contradictory factual claims across all files in the cluster: different versions of the same entity, different dates for the same event, conflicting decisions, different URLs for the same resource. If any contradiction is found, run Step 4a before classifying.
+
+**Step 4a — Self-acknowledged supersession (suppresses FLAG).** Step 4a is a narrow, conservative escape hatch: it suppresses FLAG only in the unambiguous **2-file** case where exactly one file openly declares the other as its successor in its own YAML frontmatter. Anything more complicated still routes to FLAG.
+
+**Preconditions — ALL must hold for Step 4a to suppress:**
+
+1. **Pair-only.** The cluster has exactly 2 files. 3+ files → Step 4a does NOT apply; Step 4 routes to FLAG.
+2. **Exactly one stale.** Call a file "stale" if BOTH of the following are true:
+   - **YAML frontmatter check.** Parse the file's opening `---`…`---` block as YAML. Look up the `description` field's string value. Case-insensitively match `SUPERSEDED`, `DEPRECATED`, `REPLACED BY`, `OBSOLETE`, or `RESOLVED — see` within that string value only. Substring matches in the body, in other YAML fields, or outside the frontmatter block do NOT count.
+   - **Cross-reference check.** Within the file's first 20 body lines (after the frontmatter), the file names the other candidate by its exact `.md` filename, OR by `[[<name>]]` where `<name>` equals the other candidate's frontmatter `name` field (or its filename minus `.md`).
+   - Both sub-conditions are AND'd. If neither file qualifies as stale, OR if both files qualify, the succession is ambiguous → Step 4a does NOT apply; Step 4 routes to FLAG.
+
+If all preconditions hold (2-file pair, exactly one stale), the cluster does NOT FLAG. Route by Step 3's overlap %:
+
+- `>90%` → DEDUPE (keeper = the non-stale file; the stale file goes to `archive/`).
+- `60–90%` → MERGE (keeper filename = the non-stale file's filename; fold in any stale-file facts that add forward-looking value).
+- `30–60%` → no cross-file MERGE; classify the stale file as ARCHIVE and the non-stale file as KEEP. The per-file triage pass already produced rows for these; no new cluster row is emitted.
+- `<30%` → unreachable; Step 3 already filtered this band as "not a cluster".
+
+The point: a file that openly marks itself as obsolete AND points at exactly one successor is not a contradiction — it's documented history. Every more ambiguous case (3+ files, both stale, no cross-reference, frontmatter-keyword-only with no link) stays FLAG so the user sees it.
+
+Only if Step 4 finds a contradiction AND Step 4a's preconditions do NOT all hold → cluster action is FLAG, regardless of Step 3's overlap %.
 
 **Step 5 — Keeper selection (DEDUPE only).** The keeper is the file with the newest `last-updated` frontmatter date. If that field is absent or ties, use the file's mtime (most recently modified). This is deterministic — do not choose based on content quality.
 
@@ -927,7 +948,7 @@ For each candidate cluster (a group of 2 or more in-scope files):
 1. **Cross-type clustering forbidden.** Never cluster a `feedback` file with a `project`, `user`, or `reference` file — even if their topics overlap. Step 1 enforces this.
 2. **Singletons are not clusters.** A group of exactly 1 file is not a cluster — skip silently.
 3. **Newest is the keeper in DEDUPE** — determined by frontmatter `last-updated` field if present, else file mtime. Deterministic tiebreak, never content-quality preference.
-4. **Conflict scan routes to FLAG, never MERGE.** If Step 4 finds any contradictory factual claim, the cluster action is FLAG regardless of overlap %.
+4. **Conflict scan routes to FLAG, never MERGE — unless Step 4a's narrow preconditions ALL hold.** If Step 4 finds any contradictory factual claim AND Step 4a's preconditions (2-file pair, exactly one file is "stale" per the AND'd YAML-frontmatter + cross-reference test) do NOT all hold, the cluster action is FLAG regardless of overlap %. If Step 4a fully suppresses, the contradiction is documented succession and the cluster is routed to DEDUPE / MERGE / ARCHIVE per Step 4a's overlap branching.
 5. **Backup-first is preserved.** This subagent proposes only — the outer command's backup machinery (M6) covers all cluster-derived operations.
 6. **Locked files are excluded from clustering.** A file whose triage row reads `Action: KEEP` AND `Reason: user-locked (mempenny-lock)` (per Spec 2) is never a DEDUPE keeper, MERGE source, or FLAG candidate. Skip them entirely from cluster consideration.
 
