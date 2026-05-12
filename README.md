@@ -5,11 +5,11 @@
 Claude's memory grows. Old notes pile up. The signal gets buried. MemPenny tidies it — and Claude's next session starts sharper.
 
 ```
-Real example: 415 files, 2.4 MB on one project. 120 files, 960 KB on another.
-That's a lot of stale notes loading into every session.
+Before:  424 files · 1,247 KB loading every session
+After:   227 files ·   458 KB · ~63% lighter
 ```
 
-A worked case study of a second-pass run: [Real-world results](docs/real-world-results.md).
+A real second-pass run; full case study: [Real-world results](docs/real-world-results.md).
 
 Two ways:
 
