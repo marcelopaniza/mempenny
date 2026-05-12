@@ -2,6 +2,14 @@
 
 All notable changes to MemPenny are documented here. This project follows [semantic versioning](https://semver.org/).
 
+## [1.0.3] — 2026-05-12
+
+README intro: visual before/after.
+
+### Changed
+
+- **`README.md`** — replaced the "Real example" callout (which described problem scale across two projects) with a stacked-rows before/after block from a real second-pass `/mempenny:clean` run: `Before: 424 files · 1,247 KB loading every session` / `After: 227 files · 458 KB · ~63% lighter`. The case-study link still points at `docs/real-world-results.md` for the full breakdown. No other changes.
+
 ## [1.0.2] — 2026-05-12
 
 Triage rubric hardening + a worked case study.
