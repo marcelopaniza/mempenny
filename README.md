@@ -23,6 +23,7 @@ What it does:
 - Trims bloated notes to one or two lines.
 - Spots duplicates and keeps the best one.
 - Flags files that contradict each other so you can sort them out.
+- Organizes what's kept into a fixed set of topic files, so nothing sprawls into hundreds of one-off notes. *(New in v1.1 — existing projects convert automatically.)*
 - Leaves alone files and folders you mark off-limits.
 
 Don't like a change? `/mempenny:restore` puts everything back. Backup-first, always.
@@ -66,6 +67,21 @@ Lists backups, you pick one. The current state is snapshotted first — the rest
 
 ---
 
+## Topic-based organization
+
+Starting in v1.1, MemPenny organizes what it keeps instead of just cleaning it. Every memory file lands in one of 8 fixed topics — a goal/requirements file, an in-flight-work file, a shipped-work log, a support log, a hazards file, a standing-rules file, a decisions log, and a reference/glossary file. Each has a defined job, so a fresh Claude session (or you, six months later) knows exactly where to look without reading eight files to find one fact.
+
+**Existing projects convert automatically.** The next time you run `/mempenny:clean` on a memory directory still using the old one-file-per-memory layout, MemPenny migrates it: every existing file gets relocated — never deleted, never rewritten — into the right topic, verified line-for-line before anything old is removed, then reports what moved where. No prompt to click through; the backup and the verify-before-delete step are the safety net, not the click. Don't want this yet? `/mempenny:clean --no-migrate` opts a project out.
+
+As topics grow, MemPenny keeps them from sprawling two different ways:
+
+- **`/mempenny:memory-curate <file>`** — a rules/hazards/reference file that's grown large gets reviewed entry-by-entry (keep / archive / delete), not collapsed wholesale the way `/mempenny:memory-distill` would.
+- **`/mempenny:memory-shard-roll <file>`** — a log file (shipped work, support history, decisions) that's grown large gets its finished years closed out into their own locked, permanent files, so the active file stays current-year-sized.
+
+Both trigger automatically from `/mempenny:clean` when a topic file crosses its size ceiling, and both run through the same backup-first, verify-before-write discipline as everything else in MemPenny. Full design spec: [`docs/memory-taxonomy-design.md`](docs/memory-taxonomy-design.md).
+
+---
+
 ## `/mempenny:nap` — schedule a learning nap
 
 Pick a frequency and a time. MemPenny runs `/clean --yes` for you when the schedule fires — no prompt, just a clean memory waiting for you.
@@ -91,12 +107,15 @@ Cross-platform: Linux + macOS for now. Windows support deferred.
 - `--lang <code>` — locale for user-visible output. Ships with `en`, `es`, `pt-BR`. Also honors `MEMPENNY_LOCALE`.
 - `--reconfigure` — re-prompt for this memory directory's backup folder (ignores the saved entry). Other projects' entries are left alone.
 - `--yes` — skip the confirmation gate; auto-apply after triage. Backup-first. This is what `/mempenny:nap` fires when the schedule runs.
+- `--no-migrate` — opt this memory directory out of automatic topic-taxonomy migration, permanently (until you remove the flag by re-running without it). See [Topic-based organization](#topic-based-organization).
 
 ## Manual phases
 
 - `/mempenny:memory-triage [--dir <path>] [--only <glob>] [--lang <code>]` — dry-run triage. Produces a markdown classification table at a private `mktemp` path with permissions `600`. No writes.
 - `/mempenny:memory-apply <table-file> [--dir <path>] [--lang <code>]` — applies a previously approved triage table. Table path is required; pass the path printed by `/mempenny:memory-triage`. Creates a backup before modifying anything.
 - `/mempenny:memory-distill <file> [--lang <code>]` — one-off distillation of a single file. Interactive: shows the proposal, asks to apply / skip / edit.
+- `/mempenny:memory-curate <file> [--lang <code>] [--yes]` — entry-by-entry reduction for an over-ceiling `traps.md`/`rules.md`/`reference.md`. See [Topic-based organization](#topic-based-organization).
+- `/mempenny:memory-shard-roll <file> [--lang <code>]` — closes finished calendar years out of an over-ceiling `worklog.md`/`support.md`/`decisions.md` into a locked yearly file. See [Topic-based organization](#topic-based-organization).
 
 ## Tell MemPenny what to leave alone
 
@@ -120,7 +139,7 @@ Remove the marker (or the line) to unlock. The same `.mempenny-fixture` marker a
 
 ## Config file
 
-MemPenny stores one small JSON file at `~/.claude/mempenny.config.json` mapping each memory directory to its backup folder:
+MemPenny stores one small JSON file at `~/.claude/mempenny.config.json` mapping each memory directory to its backup folder, plus (since v1.1) each directory's topic-migration state:
 
 ```json
 {
@@ -128,11 +147,17 @@ MemPenny stores one small JSON file at `~/.claude/mempenny.config.json` mapping 
   "memory_dirs": {
     "/home/you/.claude/projects/-mnt-data-project-a/memory": "/home/you/.claude/projects/-mnt-data-project-a/memory.backups",
     "/home/you/.claude/projects/-mnt-data-project-b/memory": "/home/you/backups/mempenny-b"
+  },
+  "memory_layout": {
+    "/home/you/.claude/projects/-mnt-data-project-a/memory": "topics"
+  },
+  "migrate_documents": {
+    "/home/you/.claude/projects/-mnt-data-project-b/memory": false
   }
 }
 ```
 
-First run of `/mempenny:clean` (or `/mempenny:nap`) in a memory directory prompts for the folder and adds an entry. Other entries are preserved on every write. The file is `chmod 600`.
+First run of `/mempenny:clean` (or `/mempenny:nap`) in a memory directory prompts for the folder and adds an entry. Other entries are preserved on every write. The file is `chmod 600`. `memory_layout` and `migrate_documents` entries only appear once relevant — a directory absent from both is still on the flat layout and still eligible for automatic migration (the default).
 
 ## Rollback — manual
 
@@ -194,7 +219,7 @@ The first three are per-file decisions made on every run. DEDUPE / MERGE / FLAG 
 
 ## How it works
 
-Commands are markdown prompt templates that orchestrate AI subagents. `/mempenny:clean` runs a per-file triage subagent, then a cross-file cluster subagent, then an apply subagent — with a confirm gate before any write. Pass `--yes` to skip the confirm gate; this is what `/mempenny:nap` fires when the schedule runs. `/mempenny:nap` is a small bash hook (`hooks/nap-check.sh`) shipped with the plugin that fires on `SessionStart`, checks your schedule, and if it's time, runs `/mempenny:clean --yes` automatically. `/mempenny:restore` reads the backup index, takes a safety snapshot of the current state, and copies the chosen backup into place. Memory-* commands are the same building blocks exposed individually.
+Commands are markdown prompt templates that orchestrate AI subagents. `/mempenny:clean` runs a per-file triage subagent, then a cross-file cluster subagent, then an apply subagent — with a confirm gate before any write. Pass `--yes` to skip the confirm gate; this is what `/mempenny:nap` fires when the schedule runs. `/mempenny:nap` is a small bash hook (`hooks/nap-check.sh`) shipped with the plugin that fires on `SessionStart`, checks your schedule, and if it's time, runs `/mempenny:clean --yes` automatically. `/mempenny:restore` reads the backup index, takes a safety snapshot of the current state, and copies the chosen backup into place. Memory-* commands are the same building blocks exposed individually. Migration, `/mempenny:memory-curate`, and `/mempenny:memory-shard-roll` follow the same shape: a read-only subagent proposes, a separately-spawned apply subagent verifies and writes, and nothing old is removed until that verification passes.
 
 The plugin is markdown command files, three JSON locale files, a small bash hook, and a plugin manifest. Everything stays on your machine — nothing is sent over the network.
 
