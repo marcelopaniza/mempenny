@@ -2,6 +2,26 @@
 
 All notable changes to MemPenny are documented here. This project follows [semantic versioning](https://semver.org/).
 
+## [1.1.3] — 2026-07-02
+
+`/mempenny:memory-curate` and `/mempenny:memory-shard-roll` no longer share migration's scale ceiling — and the fix is more thorough than a mechanical port, after three review rounds each found real issues in the round before.
+
+### Fixed
+
+- **curate and shard-roll had the same output-budget ceiling migration was just fixed for**, made more likely to trigger by migration's own fix (which can now legitimately produce much larger topic files). Unlike migration, both commands' split points are exactly mechanically detectable — shard-roll's `## YYYY-MM` headings, curate's `### ` entry headings — so neither needs an LLM to move content, only to decide what to do with it. Rewrote both apply steps as a single Bash script using `sed -n` line-range extraction directly into the new files, instead of reading a file into context and regenerating it through a Write call. No output-size ceiling on the extraction step itself.
+- **Fence-aware boundary detection.** A heading-shaped line quoted inside a fenced code example (e.g. documenting the heading format itself) is no longer mistaken for a real structural boundary, in either script.
+- **A file's last line, if it lacks a trailing newline, is no longer silently dropped.** Affected both scripts independently through two separate mechanisms (`wc -l` undercounting, and `while read` skipping an unterminated final line).
+- **curate no longer silently misclassifies entries that share identical heading text** — refuses to run instead, since its per-heading lookup can't safely disambiguate them.
+- **curate hard-fails immediately on a classification-table mismatch** instead of tolerating it the same way as a legitimate lock override — a mismatch this close to classification time is a structural signal, not something to paper over.
+- shard-roll no longer leaves earlier years' shard files orphaned (and already locked) if a later year in the same multi-year batch fails.
+- Archive-file writes (curate) now check the specific file path for a symlink, not just its parent directory; a pre-existing archive file's own trailing newline is now normalized before appending, so old and new entries can't merge onto one line.
+- The final commit step in both scripts now happens on the same filesystem as the target directory, avoiding a cross-device rename failure that could leave a write landed with no clear success/failure signal.
+- Both scripts now report `EXCLUDED_AS_FENCED` in their output — a count of heading-shaped lines treated as inside a fenced block, for human visibility.
+
+### Known, accepted limitation
+
+Fence-aware detection can't fully distinguish a legitimately quoted heading example from a real heading lost when two independent, ordinary fence-formatting mistakes elsewhere in the same file happen to cancel out — both look identical to any line-based scanner. Closing this completely would need a real markdown parser, which isn't proportionate given it requires two independent mistakes in one file and everything else here fails closed. See `docs/memory-taxonomy-design.md` for the full reasoning.
+
 ## [1.1.2] — 2026-07-02
 
 Migration hardening: fixes a scale ceiling and a rollback-safety regression found by real-world use of v1.1.0's migration feature on a larger project, before either could reach a wider audience.
