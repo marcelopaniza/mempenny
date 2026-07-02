@@ -26,10 +26,10 @@ Read `${CLAUDE_PLUGIN_ROOT}/locales/<lang>/strings.json`. Fall back to `en` and 
 
 Before touching the file, apply the following validation. On any failure, print `errors.memory_dir_not_found` and STOP — do not read the file.
 
-1. **Regex (C1):** the raw argument must match `^/[A-Za-z0-9/_.\- ]{1,4096}$`. Reject anything that doesn't match.
+1. **Regex (C1):** the raw argument must match `^/[A-Za-z0-9/_.\ -]{1,4096}$`. Reject anything that doesn't match.
 2. **Symlink check (pre-realpath):** `[ ! -L "<path>" ]` — reject if the path is a symlink. This check runs BEFORE `realpath` because `realpath` follows symlinks.
 3. **Realpath:** run `realpath "<path>"` via Bash. Use the resolved value for all subsequent steps. (held as `$resolved` for the rest of the flow)
-4. **Regex re-check:** the resolved path must also match `^/[A-Za-z0-9/_.\- ]{1,4096}$`. Reject if it does not.
+4. **Regex re-check:** the resolved path must also match `^/[A-Za-z0-9/_.\ -]{1,4096}$`. Reject if it does not.
 5. **Confinement:** the resolved path's parent directory must equal `{MEMORY_DIR}` (the file must be directly inside the memory dir — not a descendant of a subdirectory, and not escaping via symlink). Always auto-detect `{MEMORY_DIR}` from the current project mapping (this command does not accept `--dir`). Use the same H5 4-check pattern as `clean.md` Step 3 to validate the auto-detected path (regex → realpath → depth → existence + not-a-symlink). If auto-detection fails, print `errors.memory_dir_not_found` and STOP.
 6. **Existence + regular file:** `[ -f "<resolved>" ]` — reject if absent or not a regular file.
 

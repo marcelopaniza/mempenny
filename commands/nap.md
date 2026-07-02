@@ -36,7 +36,7 @@ You'll need `nap.*`, `errors.*`, `warnings.*`, `prompts.*`, `confirmations.*`, a
 
 **If `--dir <path>` was passed**, apply the following validation. On any failure, print `errors.memory_dir_not_found` and STOP:
 
-1. Regex: `^/[A-Za-z0-9/_.\- ]{1,4096}$` (alphanumerics, slash, underscore, dot, hyphen, space only).
+1. Regex: `^/[A-Za-z0-9/_.\ -]{1,4096}$` (alphanumerics, slash, underscore, dot, hyphen, space only).
 2. Realpath: run `realpath "<candidate>"` via Bash. Use the resolved value for all subsequent steps.
 3. Depth: reject if the realpath equals `/` or has fewer than 2 path components.
 4. Existence + not-a-symlink: `[ -d "$resolved" ] && [ ! -L "$resolved" ]`.
@@ -256,7 +256,7 @@ Per-memory-dir keying. `frequency` ∈ `{"daily", "weekly", "once"}`. `time` is 
 
 4. **v1→v2 migration (mirrors `/mempenny:clean` Step 4 migration block):**
    Before running the v2 validation checks below, inspect the parsed JSON. If the top-level object contains `"version": 1` AND a string `backup_folder` (the legacy v0.4.x shape):
-   - Apply the C1 regex + realpath + regex re-check to `backup_folder`: it must be a string, match `^/[A-Za-z0-9/_.\- ]{1,4096}$`, and `realpath "{backup_folder}"` must resolve to a path that still matches the same regex. If any gate fails, treat the v1 config as unusable: warn the user, skip the migration, and fall through to first-run setup with `{ "version": 2, "memory_dirs": {}, "schedules": {} }` — DO NOT clobber `memory_dirs`.
+   - Apply the C1 regex + realpath + regex re-check to `backup_folder`: it must be a string, match `^/[A-Za-z0-9/_.\ -]{1,4096}$`, and `realpath "{backup_folder}"` must resolve to a path that still matches the same regex. If any gate fails, treat the v1 config as unusable: warn the user, skip the migration, and fall through to first-run setup with `{ "version": 2, "memory_dirs": {}, "schedules": {} }` — DO NOT clobber `memory_dirs`.
    - If all gates pass, build a v2 object in memory:
      ```json
      {
@@ -272,7 +272,7 @@ Per-memory-dir keying. `frequency` ∈ `{"daily", "weekly", "once"}`. `time` is 
 5. **Validation (M1):**
    - Top-level must be a JSON object.
    - `version` must be the integer `2`.
-   - `memory_dirs` (if present) must be an object whose every key and value matches `^/[A-Za-z0-9/_.\- ]{1,4096}$`. No `..` segment in any key or value. **C1 fix from v0.4.1 still applies — every entry, not just one.**
+   - `memory_dirs` (if present) must be an object whose every key and value matches `^/[A-Za-z0-9/_.\ -]{1,4096}$`. No `..` segment in any key or value. **C1 fix from v0.4.1 still applies — every entry, not just one.**
    - `schedules` (if present) must be an object. Every key must match the same C1 regex. Every value must be an object with:
      - `frequency`: one of `"daily"`, `"weekly"`, `"once"`.
      - `time`: must match `^([01]?[0-9]|2[0-3]):[0-5][0-9]$`.
@@ -330,7 +330,7 @@ Match by exact label string. Branching:
 
 **Validate the candidate path (C1 + H4):**
 
-1. **Regex:** `^/[A-Za-z0-9/_.\- ]{1,4096}$`.
+1. **Regex:** `^/[A-Za-z0-9/_.\ -]{1,4096}$`.
 2. **Realpath:** `realpath "<candidate>"`. Reject if not resolvable. Use the resolved value going forward.
 3. **Overlap (H4):** reject if `realpath({candidate})` has `realpath({MEMORY_DIR})` as a prefix, OR vice versa.
 4. **Depth:** reject `/`, anything with fewer than 2 path components, `realpath $HOME` (if `$HOME` is set non-empty), or `/root/*` (if `EUID == 0`).

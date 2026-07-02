@@ -2,6 +2,23 @@
 
 All notable changes to MemPenny are documented here. This project follows [semantic versioning](https://semver.org/).
 
+## [1.1.0] — 2026-07-02
+
+Topic-based memory organization, with automatic migration from the old flat layout.
+
+### Added
+
+- **Topic taxonomy** — memory files now organize into 8 fixed topic files (`charter.md`, `pending.md`, `worklog.md`, `support.md`, `traps.md`, `rules.md`, `decisions.md`, `reference.md`) instead of one file per memory, each with a defined purpose. Full spec in `docs/memory-taxonomy-design.md`.
+- **Automatic migration** — `/mempenny:clean` detects a memory directory still on the old flat layout and converts it on its next run: reads every existing file, relocates content into the 8 topics (move-only — never deletes, never rewrites), verifies every line of the old content landed somewhere in the new layout before removing anything old, then reports what moved where. Runs without a confirmation prompt — a full backup precedes it, and the move-only-plus-verify-before-delete guarantee is what makes that safe, not the prompt. Opt out per-project with `/mempenny:clean --no-migrate`.
+- **`/mempenny:memory-curate <file>`** — new command. For a topic file that's grown large, proposes and applies a keep/archive/delete decision per entry, instead of collapsing the whole file the way `/mempenny:memory-distill` would (wrong for a file holding many independent rules or hazards).
+- **`/mempenny:memory-shard-roll <file>`** — new command. Once a calendar year has fully ended, closes it out of a growing log-topic file into its own locked, permanent yearly file, keeping the active file small without losing history.
+- **`memory_layout` / `migrate_documents`** — new per-directory fields in `~/.claude/mempenny.config.json` tracking migration state and the opt-out flag.
+
+### Fixed
+
+- **`hooks/nap-check.sh`'s path-safety regex never matched a real path.** A malformed character class meant the `SessionStart` hook exited before ever checking whether a schedule was due — `/mempenny:nap` has likely never actually fired for anyone since it shipped in v0.8.0. Fixed and verified directly against the regex engine; the same malformed pattern is corrected everywhere else it appeared (config/path validation across all commands).
+- `/mempenny:restore`'s backup-tampering check now correctly ignores MemPenny's own layout marker instead of flagging every new-format backup as tampered.
+
 ## [1.0.3] — 2026-05-12
 
 README intro: visual before/after.

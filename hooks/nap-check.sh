@@ -20,7 +20,7 @@ MEMORY_DIR=$(realpath "$MEMORY_DIR" 2>/dev/null) || exit 0
 
 # Defense-in-depth path-safety check — only emit paths matching MemPenny's C1 regex
 # (mirrors the regex used in commands/clean.md and commands/nap.md)
-[[ "$MEMORY_DIR" =~ ^/[A-Za-z0-9/_.\-\ ]{1,4096}$ ]] || exit 0
+[[ "$MEMORY_DIR" =~ ^/[A-Za-z0-9/_.\ -]{1,4096}$ ]] || exit 0
 
 CONFIG="$HOME/.claude/mempenny.config.json"
 [ -f "$CONFIG" ] || exit 0
@@ -42,7 +42,7 @@ esac
 
 PLUGIN_DATA="${CLAUDE_PLUGIN_DATA:-$HOME/.claude/data/mempenny}"
 # Defense-in-depth path-safety on plugin data dir (mirrors C1 regex)
-[[ "$PLUGIN_DATA" =~ ^/[A-Za-z0-9/_.\-\ ]{1,4096}$ ]] || exit 0
+[[ "$PLUGIN_DATA" =~ ^/[A-Za-z0-9/_.\ -]{1,4096}$ ]] || exit 0
 mkdir -p "$PLUGIN_DATA" 2>/dev/null || exit 0
 
 DIR_HASH=$(echo -n "$MEMORY_DIR" | sha1sum | cut -c1-12)

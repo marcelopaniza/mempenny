@@ -10,7 +10,7 @@ Apply a pre-approved triage plan to a memory directory.
 The user invoked this command with: $ARGUMENTS
 
 - **Table path:** first positional argument, **required**. In v0.4.0 this defaulted to `/tmp/triage_table.md` when omitted; that default was removed in v0.4.1 (H3) because `/tmp` is not private on multi-user systems — a pre-placed `/tmp/triage_table.md` by another user or process could hijack the apply. Today `/mempenny:memory-triage` prints a per-invocation `mktemp` path; pass that path here. If the positional arg is missing, report `errors.table_not_found` from the loaded locale and STOP.
-  - **Path validation (H3):** the table path must match `^/[A-Za-z0-9/_.\- ]{1,4096}$`, must resolve via `realpath`, must exist, and must not be a symlink. Reject otherwise.
+  - **Path validation (H3):** the table path must match `^/[A-Za-z0-9/_.\ -]{1,4096}$`, must resolve via `realpath`, must exist, and must not be a symlink. Reject otherwise.
   - **Permission sanity (F-M1 — explicit shell checks, not narrative):**
     ```bash
     perm=$(stat -c %a "$TABLE_PATH" 2>/dev/null || echo "")
@@ -38,7 +38,7 @@ Read `${CLAUDE_PLUGIN_ROOT}/locales/<lang>/strings.json`. Fall back to `en` if m
 **If `--dir <path>` was passed in Step 1**, apply the following validation before using it. On any failure, print `errors.memory_dir_not_found` and STOP:
 
 **Validate `--dir <path>` (C-class shell-injection guard):**
-1. Regex: the candidate path must match `^/[A-Za-z0-9/_.\- ]{1,4096}$` (alphanumerics, slash, underscore, dot, hyphen, space only).
+1. Regex: the candidate path must match `^/[A-Za-z0-9/_.\ -]{1,4096}$` (alphanumerics, slash, underscore, dot, hyphen, space only).
 2. Realpath: run `realpath "<candidate>"` via Bash. Use the resolved value for all subsequent steps.
 3. Depth: reject if the realpath equals `/` or has fewer than 2 path components.
 4. Existence + not-a-symlink: `[ -d "$resolved" ] && [ ! -L "$resolved" ]`.
@@ -78,7 +78,7 @@ Before spawning the subagent, determine `{BACKUP_PATH}` as follows:
    - Top-level must be an object.
    - `version` must be the integer `2`.
    - `memory_dirs` must be an object.
-   - Every key and value in `memory_dirs` must match the tight regex `^/[A-Za-z0-9/_.\- ]{1,4096}$` (C1: rejects shell metacharacters like `$(…)` and backticks before any bash interpolation).
+   - Every key and value in `memory_dirs` must match the tight regex `^/[A-Za-z0-9/_.\ -]{1,4096}$` (C1: rejects shell metacharacters like `$(…)` and backticks before any bash interpolation).
    - No key or value may contain `..` as a path segment.
    - Look up `{MEMORY_DIR}` (realpath-normalized, no trailing slash) in `memory_dirs`. If no entry exists for this memory dir, treat the config as "no answer for this dir" and fall through to the legacy fallback in step 3. `/mempenny:memory-apply` does **not** prompt the user — that's `/mempenny:clean`'s job — so a missing entry simply means "sibling fallback" rather than "abort".
    - If an entry exists, run `realpath "{entry-value}"` and verify the resolved path starts with `/`, still matches the tight regex, and that the **parent** of the resolved path exists (`[ -d "$(dirname "$resolved")" ]`). If any check fails, fall through to the legacy fallback.
@@ -218,6 +218,19 @@ set -euo pipefail
 # Sub-step 4 (M4): write a sha256 manifest so /mempenny:restore can verify the backup wasn't silently tampered
 ( cd "{BACKUP_PATH}" && find . -type f ! -name MANIFEST.sha256 -print0 | sort -z | xargs -0 sha256sum > MANIFEST.sha256 )
 chmod 600 "{BACKUP_PATH}/MANIFEST.sha256"
+```
+
+```bash
+set -euo pipefail
+# Sub-step 5: record the memory layout at backup time, so /mempenny:restore can sync the
+# config's memory_layout marker to whatever it actually restores. Self-contained check --
+# presence of any reserved topic-taxonomy filename means this backup captured the topics layout.
+if [ -f "{MEMORY_DIR}/charter.md" ] || [ -f "{MEMORY_DIR}/rules.md" ] || [ -f "{MEMORY_DIR}/worklog.md" ]; then
+  echo "topics" > "{BACKUP_PATH}/.memory_layout_at_backup"
+else
+  echo "flat" > "{BACKUP_PATH}/.memory_layout_at_backup"
+fi
+chmod 600 "{BACKUP_PATH}/.memory_layout_at_backup"
 ```
 
 If any sub-step fails, STOP immediately and return an error. Do NOT continue to Apply Order step 3.

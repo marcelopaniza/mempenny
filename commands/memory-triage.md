@@ -12,7 +12,7 @@ The user invoked this command with: $ARGUMENTS
 Parse three optional arguments from `$ARGUMENTS`:
 
 - `--dir <path>` — absolute path to the memory directory to triage. If set, use it verbatim and skip auto-detection. If not set, auto-detect the current project's memory dir (see Step 3). This is the escape hatch for triaging another project's memory without switching sessions.
-- `--only <glob>` — scope filter (e.g., `--only project_*.md` or `--only "project_*_20*.md,reference_*.md"`). Default: every `.md` file directly under the memory dir. **L2 validation (tightened in v0.4.1 follow-up):** the raw value must match `^[A-Za-z0-9_.\-*?\[\]{},]{1,256}$` — no `/`, no space, no shell metacharacters. `/` is disallowed because scope is top-level only; multi-dir globs are not supported.
+- `--only <glob>` — scope filter (e.g., `--only project_*.md` or `--only "project_*_20*.md,reference_*.md"`). Default: every `.md` file directly under the memory dir. **L2 validation (tightened in v0.4.1 follow-up):** the raw value must match `^[]A-Za-z0-9_.*?[{},-]{1,256}$` — no `/`, no space, no shell metacharacters. `/` is disallowed because scope is top-level only; multi-dir globs are not supported.
 - `--lang <code>` — output language for distilled replacements and summary labels (e.g., `--lang pt-BR`). If not passed, check the `MEMPENNY_LOCALE` environment variable. If that's also unset, default to `en`.
 
 ## Step 2 — Load locale strings
@@ -30,7 +30,7 @@ Keep the loaded JSON in working memory — you'll need `triage.*` labels for the
 **If `--dir <path>` was passed in Step 1**, apply the following validation before using it. On any failure, print `errors.memory_dir_not_found` and STOP:
 
 **Validate `--dir <path>` (C-class shell-injection guard):**
-1. Regex: the candidate path must match `^/[A-Za-z0-9/_.\- ]{1,4096}$` (alphanumerics, slash, underscore, dot, hyphen, space only).
+1. Regex: the candidate path must match `^/[A-Za-z0-9/_.\ -]{1,4096}$` (alphanumerics, slash, underscore, dot, hyphen, space only).
 2. Realpath: run `realpath "<candidate>"` via Bash. Use the resolved value for all subsequent steps.
 3. Depth: reject if the realpath equals `/` or has fewer than 2 path components.
 4. Existence + not-a-symlink: `[ -d "$resolved" ] && [ ! -L "$resolved" ]`.
@@ -166,6 +166,11 @@ Net savings:  Z KB (W%)
 ### Constraints
 
 - **Lock check (runs BEFORE rubric):** for each candidate file, check if its content (anywhere in the file) contains the `mempenny-lock` marker (spacing inside the comment is flexible). Use `grep -qE '<!--[[:space:]]*mempenny-lock[[:space:]]*-->' "$file"` or equivalent. If yes: classify as KEEP with reason **"user-locked (mempenny-lock)"** and SKIP all other rubric (no content analysis, no size-based DISTILL trigger). The locked file appears in the output table with Action=KEEP. Move to the next file.
+- **Topic-scaffold check (runs BEFORE rubric, same precedence as the lock check):** requires BOTH of the following, not filename alone — a file merely named e.g. `rules.md` with no matching frontmatter proves nothing about its actual origin or content and must NOT be exempted:
+  1. The filename is exactly one of MemPenny's 9 reserved topic-taxonomy files — `charter.md`, `pending.md`, `worklog.md`, `support.md`, `traps.md`, `rules.md`, `decisions.md`, `reference.md`, `howto.md`.
+  2. The file's YAML frontmatter `type:` field matches the name: `charter.md`→`type: charter`, `pending.md`→`type: pending`, `worklog.md`→`type: worklog`, `support.md`→`type: support`, `traps.md`→`type: traps`, `rules.md`→`type: rules`, `decisions.md`→`type: decisions`, `reference.md`→`type: reference`, `howto.md`→`type: howto`.
+
+  If both hold, classify as KEEP with reason **"topic scaffold (reserved)"** and SKIP all other rubric, regardless of size or emptiness. These files' overflow is handled by sharding or curate (see `docs/memory-taxonomy-design.md`), never by DELETE/ARCHIVE/DISTILL. If the filename matches but the frontmatter type doesn't (or is missing), this is NOT a topic scaffold — read it and classify normally through the rubric below. (Year-shard files like `worklog-2026.md` are already covered by the lock check above, since shards are always created locked.)
 - Read every file before classifying it — don't classify from filename alone.
 - Distilled replacements must be tight: 1-3 sentences, factual, forward-looking. Preserve any URLs, file paths, commands, or version numbers mentioned verbatim — **do not translate technical terms** even when the output language is not English.
 - Preserve **"without loss"** as the top priority. Aggression is not a goal.

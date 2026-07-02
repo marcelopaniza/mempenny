@@ -25,13 +25,14 @@ MemPenny operates on the user's local machine, on files in `~/.claude/projects/<
 
 Specific guardrails (codenames in source):
 
-- **Path traversal (C1):** every absolute-path config value passes a tight regex `^/[A-Za-z0-9/_.\- ]{1,4096}$` and a `realpath` resolution before use.
+- **Path traversal (C1):** every absolute-path config value passes a tight regex `^/[A-Za-z0-9/_.\ -]{1,4096}$` and a `realpath` resolution before use.
 - **Symlink attacks (F-M2):** symlink guards on `~/.claude/mempenny.config.json` and `~/.claude/settings.json` reads and writes, with TOCTOU re-checks immediately before mutation.
 - **Filename injection (H1):** filenames in triage tables are validated against `^[A-Za-z0-9][A-Za-z0-9_.\-]*\.md$` before any `rm` or `mv`.
 - **Prompt injection in memory bodies (H2):** subagent prompts treat file bodies as data; locked-file marker check runs before content rubric.
 - **Backup integrity (M4 + M6):** every modification is preceded by a `cp -a` backup with a SHA-256 manifest; explicit ordering between backup and apply.
 - **Confirm-then-write (M3):** `AskUserQuestion` cancellation always writes nothing.
 - **Permissions (L1):** config and settings writes are `chmod 600`; backup folders are `chmod 700`.
+- **Isolated apply + scripted verification (v1.1+):** the topic-taxonomy migration, `/mempenny:memory-curate`, and `/mempenny:memory-shard-roll` all run their actual writes in a separately-spawned subagent with no memory of the proposal step, never in the same context that read the untrusted source content. Migration and shard-roll additionally run without a confirmation prompt; the property that makes that safe is a scripted (not judgment-based) verification that every relocated line survived, run before anything old is deleted — see `docs/memory-taxonomy-design.md` for the full rationale.
 
 ## What we don't promise
 

@@ -26,7 +26,7 @@ Read `${CLAUDE_PLUGIN_ROOT}/locales/<lang>/strings.json`. Fall back to `en` if t
 **If `--dir <path>` was passed**, apply the following validation before using it. On any failure, print `errors.memory_dir_not_found` and STOP:
 
 **Validate `--dir <path>` (C-class shell-injection guard):**
-1. Regex: the candidate path must match `^/[A-Za-z0-9/_.\- ]{1,4096}$` (alphanumerics, slash, underscore, dot, hyphen, space only).
+1. Regex: the candidate path must match `^/[A-Za-z0-9/_.\ -]{1,4096}$` (alphanumerics, slash, underscore, dot, hyphen, space only).
 2. Realpath: run `realpath "<candidate>"` via Bash. Use the resolved value for all subsequent steps.
 3. Depth: reject if the realpath equals `/` or has fewer than 2 path components.
 4. Existence + not-a-symlink: `[ -d "$resolved" ] && [ ! -L "$resolved" ]`. (It's OK if the directory does not exist yet — restore will create it. Skip check 4 if the path does not exist, but still apply checks 1–3.)
@@ -57,7 +57,7 @@ Parse as JSON. If parsing fails, print `restore.no_config` and STOP.
 
 - **v1 legacy shape** (`"version": 1` + top-level `backup_folder` string): v0.4 stored a single global backup folder shared across all memory dirs. To preserve the ability to restore v0.4-era backups, treat the global `backup_folder` as applicable to the current memory dir. Apply the v0.4.1 validation gates:
   1. `backup_folder` must be a string (not a number, null, array, or object).
-  2. `backup_folder` must match the tight regex `^/[A-Za-z0-9/_.\- ]{1,4096}$` — the same tight regex as `--dir` validation. **C1 fix:** an earlier version used `^/[^\x00\n]{1,4096}$` which permitted shell metacharacters; a tampered config like `"backup_folder": "/tmp/x$(cmd)"` would have fired command substitution during the subsequent `realpath` call (double-quotes don't prevent `$(…)`). Reject such paths before any bash interpolation.
+  2. `backup_folder` must match the tight regex `^/[A-Za-z0-9/_.\ -]{1,4096}$` — the same tight regex as `--dir` validation. **C1 fix:** an earlier version used `^/[^\x00\n]{1,4096}$` which permitted shell metacharacters; a tampered config like `"backup_folder": "/tmp/x$(cmd)"` would have fired command substitution during the subsequent `realpath` call (double-quotes don't prevent `$(…)`). Reject such paths before any bash interpolation.
   3. Run `realpath "{backup_folder}"` via Bash (safe now that the regex is tight) and verify the resolved value still starts with `/` AND still matches the tight regex.
 
   If any gate fails, print `restore.no_config` and STOP. Otherwise, hold the **realpath-resolved** value as `{BACKUP_ROOT}` and skip to Step 5. `/mempenny:restore` does **not** auto-migrate a v1 config to v2 — only `/mempenny:clean` writes the config. Restore is read-only.
@@ -66,7 +66,7 @@ Parse as JSON. If parsing fails, print `restore.no_config` and STOP.
   1. Top-level must be a JSON object.
   2. `version` must be the integer `2`.
   3. `memory_dirs` must be an object.
-  4. Every key and value in `memory_dirs` must match the tight regex `^/[A-Za-z0-9/_.\- ]{1,4096}$` (applies C1 to every entry in the map, not just one string).
+  4. Every key and value in `memory_dirs` must match the tight regex `^/[A-Za-z0-9/_.\ -]{1,4096}$` (applies C1 to every entry in the map, not just one string).
   5. No key or value may contain `..` as a path segment.
   6. Look up `{MEMORY_DIR}` (realpath-normalized from Step 3, no trailing slash) in `memory_dirs`. If no entry exists for this memory dir, print `restore.no_config_for_dir` (substituting `{dir}` with `{MEMORY_DIR}`) and STOP. The user has never run `/mempenny:clean` against this memory dir; there's no backup folder to restore from.
   7. Run `realpath` on the looked-up value and verify the resolved value still starts with `/` and still matches the tight regex. If any check fails, print `restore.no_config` and STOP.
@@ -213,8 +213,12 @@ if [ -f "{BACKUP_ROOT}/{chosen-name}/MANIFEST.sha256" ] \
       || { echo "ABORT: backup integrity check failed — files do not match recorded hashes"; exit 1; }
 
     # (2) No files outside MANIFEST (F-M3 — detect ADDED files)
+    # .memory_layout_at_backup is written AFTER the manifest is sealed (backup sub-step 5
+    # runs after sub-step 4), so it is never in MANIFEST.sha256 by design -- exclude it here
+    # the same way MANIFEST.sha256 itself is excluded, or every backup this release creates
+    # would falsely trip the tampering check below.
     awk '{ sub(/^[^ ]+  /, ""); print }' MANIFEST.sha256 | sort > "$tmp_manifest"
-    find . -type f ! -name MANIFEST.sha256 | sort > "$tmp_actual"
+    find . -type f ! -name MANIFEST.sha256 ! -name .memory_layout_at_backup | sort > "$tmp_actual"
     if ! diff -q "$tmp_manifest" "$tmp_actual" > /dev/null; then
       echo "ABORT: backup contains files not in MANIFEST — possible tampering. Diff:"
       diff "$tmp_manifest" "$tmp_actual" || true
@@ -262,6 +266,27 @@ Do NOT run /mempenny:restore again until you have verified the state.
 ```
 
 Then STOP (do not print the normal Step 10 completion message).
+
+## Step 9b — Sync the memory_layout marker (M6)
+
+If the counts matched (Step 9 did not STOP above), sync the config's `memory_layout` entry for `{MEMORY_DIR}` to whatever this restore actually put in place, so a restore of a pre-migration backup doesn't leave a stale `"topics"` marker lying about the layout:
+
+```bash
+if [ -f "{MEMORY_DIR}/.memory_layout_at_backup" ] && [ ! -L "{MEMORY_DIR}/.memory_layout_at_backup" ]; then
+  RESTORED_LAYOUT=$(cat "{MEMORY_DIR}/.memory_layout_at_backup")
+  rm -f "{MEMORY_DIR}/.memory_layout_at_backup"
+else
+  # Backup predates this feature (no marker was ever recorded) -- the flat layout is the only
+  # thing that existed before migration was introduced, so that is the correct default.
+  RESTORED_LAYOUT="flat"
+fi
+case "$RESTORED_LAYOUT" in
+  topics|flat) ;;
+  *) RESTORED_LAYOUT="flat" ;;  # unrecognized value -- fail safe to flat rather than trust it
+esac
+```
+
+Read `~/.claude/mempenny.config.json` (same F-M2 symlink guard as Step 4), upsert `memory_layout["{MEMORY_DIR}"] = "$RESTORED_LAYOUT"` (preserving every other key in the config unchanged, same upsert discipline as `/mempenny:clean`'s Writing the config block), write, `chmod 600`. If the config can't be read/parsed at this point, skip this sync silently — restore itself already succeeded and reported; a stale `memory_layout` marker is a lesser problem than blocking the restore report on a config-write failure this late in the flow.
 
 ## Step 10 — Report
 
