@@ -2,6 +2,15 @@
 
 All notable changes to MemPenny are documented here. This project follows [semantic versioning](https://semver.org/).
 
+## [1.1.1] — 2026-07-02
+
+README overhaul: visual badges, a real before/after table, and a leaner main page. No code changes.
+
+### Changed
+
+- **`README.md`** — added a badge row (license, version, platform, backups, reviewed, locales); replaced the plain-text before/after block with a table that now also shows the file-count reduction (−46%), not just size; added a second top-of-page line headlining the topic-organization feature instead of leaving it as one bullet among many.
+- **Split the main page.** Command reference, flags, config schema, manual rollback, backup retention, localization, internals, and the locked-surface contract all moved to the new **`docs/advanced.md`**. `README.md` now covers only the pitch, install, requirements, and license — 276 lines down to 63.
+
 ## [1.1.0] — 2026-07-02
 
 Topic-based memory organization, with automatic migration from the old flat layout.
