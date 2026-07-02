@@ -2,6 +2,23 @@
 
 All notable changes to MemPenny are documented here. This project follows [semantic versioning](https://semver.org/).
 
+## [1.1.2] — 2026-07-02
+
+Migration hardening: fixes a scale ceiling and a rollback-safety regression found by real-world use of v1.1.0's migration feature on a larger project, before either could reach a wider audience.
+
+### Fixed
+
+- **Migration didn't scale past a small memory directory.** The classify-and-write design had one subagent reproduce every file's content verbatim in a single response — fine at this project's own small scale, but requiring ~390K tokens of output on a real 380-file/1.55MB directory. `/mempenny:clean` Step 4b now measures total size up front and, above 75,000 bytes, runs a three-phase batched path instead: parallel placement-only classify batches, per-topic (or sequential same-topic-chunked) writes, then one final conservation-check-and-commit pass. Live-tested end to end against a synthetic 587KB/7-file directory forcing both parallel batches and 4 sequential same-topic write chunks.
+- **Migration's rollback logic could delete a file it never wrote.** The batched path's finalize step determined what was safe to delete by scanning the directory for reserved topic filenames and assuming, incorrectly, that none could have pre-existed. A stale config (desynced from actual disk state — the same condition `/mempenny:restore` already accounts for elsewhere) could let a pre-existing or leftover topic file self-satisfy the conservation check and then get deleted without ever being genuinely verified. Fixed with an explicit pre-flight collision check (aborts or resyncs rather than guessing) and by tracking exactly which files a run wrote instead of inferring it after the fact. Found independently by all three pre-deploy reviewers before shipping.
+- **Topic-scaffold recognition didn't accept the frontmatter shape MemPenny's own files actually have.** Claude Code's own memory tooling rewrites plain frontmatter into a `metadata:`-nested shape shortly after MemPenny writes it; the recognition check required a top-level field only. Now accepts both — verified against every real topic file in this project's own memory directory.
+- **`MEMORY.md`'s own content could be silently excluded from migration.** The list of files migration must account for is now computed once, up front, from a real directory listing that always includes it — not reconstructed later from a subagent's self-reported output.
+- Conservation checks (both the small-directory and batched paths) now verify in both directions — missing old content, which fails the run, and unexplained new content, which is reported — where previously only missing content was checked.
+- Portability: replaced a GNU-only `find`/bash-4-only construct in the migration scope-enumeration step with a portable equivalent.
+
+### Known gap
+
+`/mempenny:memory-curate` and `/mempenny:memory-shard-roll` have the same theoretical output-budget ceiling migration just fixed, and migration's new batched path can now legitimately produce topic files large enough to trigger it on the very next `/mempenny:clean` run. Both fail closed (backup + their own checks) — a wasted call and a failed report, not data loss — but this is tracked as a near-term follow-up, not yet scheduled.
+
 ## [1.1.1] — 2026-07-02
 
 README overhaul: visual badges, a real before/after table, and a leaner main page. No code changes.
