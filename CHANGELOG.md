@@ -2,6 +2,10 @@
 
 All notable changes to MemPenny are documented here. This project follows [semantic versioning](https://semver.org/).
 
+## [1.1.6] — 2026-07-03
+
+Fixed the v1.1.5 taxonomy diagram: GitHub's Mermaid renderer didn't honor the `<small>` HTML tag or the custom font-family theme override the same way a local render did, so several node labels rendered at a size the auto-computed box was never sized for, clipping text (`goal & requireme`, `hazards discove`, etc.) — confirmed by screenshotting the actual live page, not just a local render. Removed both. Separately, switched the diagram from top-down to left-right: 8 boxes in one row was wider than GitHub's default diagram viewport, permanently hiding the last box behind the diagram widget's own zoom/pan controls regardless of label length; left-right grows the diagram vertically instead, which isn't width-constrained. Verified against the real github.com rendering (via a throwaway branch) before merging, not just a local Mermaid render — the local render had looked fine and still shipped a visibly broken diagram once.
+
 ## [1.1.5] — 2026-07-03
 
 Added a "How memory is organized" section to the main README, with a Mermaid diagram of the 2-level topic taxonomy (`MEMORY.md` index → the 8 topic files) — the taxonomy was previously only explained in prose, in `docs/advanced.md`. No code changes.

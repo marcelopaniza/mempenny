@@ -43,18 +43,17 @@ Don't like a change? `/mempenny:restore` puts everything back. Backup-first, alw
 Three levels, max — a cold Claude session never needs more than 3 file-opens to find anything.
 
 ```mermaid
-%%{init: {"theme": "base", "themeVariables": {"fontFamily": "Inter, ui-sans-serif, system-ui, sans-serif", "background": "transparent", "primaryTextColor": "#172033", "lineColor": "#9AA8C7"}}}%%
-flowchart TB
-    M(["✦ MEMORY.md<br/><small>tiny index · 8 fixed routes</small>"])
+flowchart LR
+    M(["✦ MEMORY.md<br/>tiny index · 8 fixed routes"])
 
-    M --> C["🧭 charter.md<br/><small>goal & requirements</small>"]
-    M --> P["⚡ pending.md<br/><small>in-flight work</small>"]
-    M --> T["⚠️ traps.md<br/><small>hazards discovered</small>"]
-    M --> R["📜 rules.md<br/><small>standing AI rules</small>"]
-    M --> F["🔎 reference.md<br/><small>people · systems · glossary</small>"]
-    M --> W["🚢 worklog.md<br/><small>shipped changes</small>"]
-    M --> S["🤝 support.md<br/><small>help given</small>"]
-    M --> D["⚖️ decisions.md<br/><small>why X over Y</small>"]
+    M --> C["🧭 charter.md<br/>goal & requirements"]
+    M --> P["⚡ pending.md<br/>in-flight work"]
+    M --> T["⚠️ traps.md<br/>hazards found"]
+    M --> R["📜 rules.md<br/>standing rules"]
+    M --> F["🔎 reference.md<br/>who/what is X"]
+    M --> W["🚢 worklog.md<br/>shipped changes"]
+    M --> S["🤝 support.md<br/>help given"]
+    M --> D["⚖️ decisions.md<br/>why X over Y"]
 
     classDef root fill:#172033,stroke:#6EE7B7,stroke-width:3px,color:#FFFFFF;
     classDef charter fill:#EAF7FF,stroke:#38BDF8,stroke-width:2px,color:#172033;
