@@ -2,6 +2,10 @@
 
 All notable changes to MemPenny are documented here. This project follows [semantic versioning](https://semver.org/).
 
+## [1.1.5] — 2026-07-03
+
+Added a "How memory is organized" section to the main README, with a Mermaid diagram of the 2-level topic taxonomy (`MEMORY.md` index → the 8 topic files) — the taxonomy was previously only explained in prose, in `docs/advanced.md`. No code changes.
+
 ## [1.1.4] — 2026-07-03
 
 Migration hardening, round two: a real 75-file migration surfaced a write-chunk scaling gap the v1.1.2 fix didn't fully close, plus a conservation-check accuracy bug serious enough to roll back a migration that had actually succeeded — and the pre-deploy review round on the first draft of both fixes found several more real issues, including two security gaps, before any of it shipped. One of those fixes was itself re-verified and found to need a further correction the same day, before any of it shipped — recorded honestly below rather than compressed away, matching this project's standing practice.
