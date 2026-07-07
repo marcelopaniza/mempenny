@@ -2,6 +2,42 @@
 
 All notable changes to MemPenny are documented here. This project follows [semantic versioning](https://semver.org/).
 
+## [1.4.0] — 2026-07-07
+
+Rewrites the topic-taxonomy migration so the model is **never in the content-reproduction path**, eliminating the failure class that rolled back two real runs on a dense ~280KB directory (124 then 91 summarized-away lines, both caught cleanly by the conservation check, nothing lost). The migration is now deterministic on the content side, resumable, and ~3× cheaper.
+
+### Root cause (definitive)
+
+The previous design asked Phase B write subagents to **read source content and reproduce it verbatim**. LLMs are synthesizers, not byte-copiers: on dense forensic paragraphs (commit hashes, test counts, root-cause narratives) they drift to the gist no matter how the prompt forbids it — v1.3.1's anti-summarization wording reduced the loss (124→91) but could not eliminate it. The conservation check then caught the residue after the full expensive run and rolled everything back. Prompt-level fixes had plateaued.
+
+### The fix — place with the model, move with a script
+
+The job is split along the line of what each side does reliably:
+
+- **Phase A — place (model, read-only):** classify each source file under exactly one topic; emit a JSON plan `[{file, topic}]`. **No content reproduction.**
+- **Phase B — move (`hooks/migrate-move.sh`, deterministic):** `cat` each source file verbatim under a per-source heading into its topic file. `cat` cannot summarize — **conservation is structural**, not a hope about model behavior.
+- **Phase C — verify + commit (isolated subagent):** the hardened conservation-check awk script stays **verbatim** (it now verifies the script's output and passes by construction), then installs the new index and deletes the old sources.
+
+### Resumable + cheaper
+
+- **Resumable:** the JSON plan is saved to `{MEMORY_DIR}/.mempenny-migration-plan.json` (chmod 600). A re-run that finds it skips Phase A and resumes from Phase B — the expensive classification is never paid twice. The plan is deleted only on `MIGRATION APPLIED`.
+- **Cheaper:** content is read by the model once (for placement), then moved by bash for free. The 17–23 write subagents are gone entirely; `commands/clean.md` shrank 1843 → 1461 lines.
+
+### Trade-off (deliberate)
+
+Topic files are now **verbatim source under per-source headings** — migration is lossless first, pretty never. Shaping into the curated topic conventions (worklog datestamps, decisions headings, etc.) is now **curate's** job, done later entry by entry. This is the "whole-file placement" design choice: preservation over precision, with curate as the follow-up.
+
+### Mover correctness detail
+
+The mover **stages** the new `MEMORY.md` index at `.mempenny-new-index.md` rather than overwriting `MEMORY.md` in Phase B — so the conservation check can still read the old `MEMORY.md` as an `OLD_FILE`. Finalize installs the index at commit, only after conservation passes. Old `MEMORY.md` content is conserved verbatim under an archive heading in `reference.md`.
+
+### Verified
+
+- `hooks/migrate-move.sh` — shellcheck-clean; proven on **real Boardero data** (42 files, ~288KB, **0 lines lost**, densest commit-hash content preserved verbatim).
+- Full deterministic flow (plan → mover → commit) tested on a fixture.
+- Smoke 5/5; JSON + YAML manifests validated; no stale references to the removed architecture.
+- Pre-deploy PII scan: clean.
+
 ## [1.3.1] — 2026-07-07
 
 Fixes the topic-taxonomy migration failing (clean rollback) on dense memory directories — session-note files packed with commit hashes, test counts, and forensic paragraphs. **No data was ever at risk:** the conservation check caught every case and rolled back atomically; this is a reliability fix so the migration actually completes on dense content instead of failing the conservation gate.
