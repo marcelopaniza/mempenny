@@ -37,4 +37,5 @@ triage_table.md
 /memory.backup-*/
 
 # Diagnostic artifacts from failed runs (may name real projects/paths — never commit)
-*-migration-failed.md
+# Suffix glob covers numbered retries: -2, -3, ... (the -N comes before .md)
+*-migration-failed*.md

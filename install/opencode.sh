@@ -43,7 +43,7 @@ echo
 mkdir -p "$DATA_DIR"
 chmod 700 "$DATA_DIR"
 
-for sub in commands locales skills .claude-plugin .opencode; do
+for sub in commands locales skills hooks .claude-plugin .opencode; do
     if [ -L "$DATA_DIR/$sub" ]; then
         echo "error: $DATA_DIR/$sub is a symlink. Refusing (F-M2)." >&2
         exit 1
