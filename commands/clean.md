@@ -438,7 +438,7 @@ Only once the collision pre-check finds nothing does migration proceed. **One th
 
 **Step 4b.2 — Migration: place with the model, move with a script (deterministic, lossless by construction)**
 
-The migration splits the job along the line of what does each reliably. The model **places** each source file under one topic (judgment, read-only). A deterministic script then **moves the bytes** (`cat`). The model never reproduces source content, so there is nothing to summarize — conservation is structural. (This replaced an earlier design that asked write subagents to relocate content verbatim; that design summarized dense paragraphs despite instruction, and the conservation check rolled the run back — twice — on a real ~280KB directory. See `boardero-migration-failed*.md` diagnostics, gitignored.)
+The migration splits the job along the line of what does each reliably. The model **places** each source file under one topic (judgment, read-only). A deterministic script then **moves the bytes** (`cat`). The model never reproduces source content, so there is nothing to summarize — conservation is structural. (This replaced an earlier design that asked write subagents to relocate content verbatim; that design summarized dense paragraphs despite instruction, and the conservation check rolled the run back — twice — on a real ~280KB directory. See CHANGELOG v1.4.0 for the full account.)
 
 Topic files end up as **verbatim source content under per-source headings** (e.g. `### project_flow_revision_session.md` followed by that file's bytes). Shaping into the curated topic conventions (worklog datestamps, decisions headings, etc.) is now **curate's** job, done later, entry by entry — migration is lossless first, pretty never.
 
