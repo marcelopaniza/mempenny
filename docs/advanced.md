@@ -203,3 +203,15 @@ From v1.0, MemPenny commits to semver. Breaking changes only on major bumps.
 - Hardening implementation details
 
 If we need to change anything in Stable, it's a v2.0.
+
+## opencode host (v1.2)
+
+MemPenny also runs on [opencode](https://opencode.ai). The two hosts share the same memory directory and config; the differences are packaging, not behavior.
+
+- **Commands:** hyphen namespace (`/mempenny-clean`, `/mempenny-nap`, `/mempenny-restore`, `/mempenny-memory-*`). These are *additions*, not renames — the Claude Code colon names stay stable. Each opencode command is a thin adapter that points at the canonical `commands/<name>.md` and adds only host-specific substitutions (env vars, config path, subagent syntax).
+- **Env vars:** opencode reads `MEMPENNY_HOST` / `MEMPENNY_ROOT` / `MEMPENNY_DATA_DIR` (set by the `.opencode/plugins/mempenny-env.ts` shim), never `CLAUDE_*`, so the two hosts cannot collide on one machine.
+- **Nap:** notify-only on opencode. When a scheduled nap is due, the `mempenny-nap.ts` plugin fires a desktop notification pointing at `/mempenny-clean --yes` (opencode's `session.created` has no Claude-style context-injection path). Auto-invoke is reserved for a future release behind `nap.mode: "auto"`.
+- **Auto-memory:** Claude-Code-specific; the detection/offer subroutine is skipped on opencode.
+- **Install:** `./install/opencode.sh` (clone-and-run, not `curl | bash`); uninstall is `./install/uninstall-opencode.sh`.
+
+Full host × model matrix, the rules-only tier for other agents (`AGENTS.md`), and the design rationale: [`host-and-model-compat.md`](host-and-model-compat.md).
