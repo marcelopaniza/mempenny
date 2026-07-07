@@ -83,7 +83,11 @@ for t in $topics_present; do
     mv "$tmp" "$MEMORY_DIR/$t.md"
 done
 
-# --- overwrite MEMORY.md with the fresh 8-topic index (old content already conserved above) ---
+# --- stage the fresh 8-topic index at a hidden path (do NOT overwrite MEMORY.md yet) ---
+# Finalize installs this into MEMORY.md AFTER the conservation check passes. Installing
+# it now would overwrite the old MEMORY.md before the conservation check can read it as
+# an OLD_FILE (old MEMORY.md content is already conserved verbatim under the archive
+# heading in reference.md above; the check compares OLD_FILES against the topic corpus).
 mem_tmp=$(mktemp "${MEMORY_DIR}/.mempenny-move-XXXXXXXX") || fail "mktemp failed"
 {
     printf -- '# Memory Index\n\n'
@@ -92,7 +96,7 @@ mem_tmp=$(mktemp "${MEMORY_DIR}/.mempenny-move-XXXXXXXX") || fail "mktemp failed
     done
 } > "$mem_tmp"
 chmod 600 "$mem_tmp"
-mv "$mem_tmp" "$MEMORY_DIR/MEMORY.md"
+mv "$mem_tmp" "$MEMORY_DIR/.mempenny-new-index.md"
 
 written=$(echo "$topics_present" | wc -w)
-echo "MOVE OK: $written topic file(s) written"
+echo "MOVE OK: $written topic file(s) written; new index staged at .mempenny-new-index.md"
