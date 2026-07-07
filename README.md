@@ -53,22 +53,31 @@ Don't like a change? One command puts everything back. Backup-first, always.
 
 ```bash
 git clone https://github.com/marcelopaniza/mempenny.git
-cd mempenny && git checkout v1.2.0
+cd mempenny && git checkout v1.3.0
 ./install/opencode.sh
 ```
 
 Commands are `/mempenny-clean`, `/mempenny-nap`, `/mempenny-restore`, `/mempenny-memory-*` (hyphen, not colon). If you also run Claude Code in this project, the two hosts share the same memory directory and config automatically — zero setup.
 
-**Other agents** — Codex, Gemini/Antigravity, Devin, Cursor, Windsurf, Cline, Kiro, Copilot, CodeWhale, Swival, OpenClaw
+**Other agents** — MemPenny ships the native adapter file each host expects (a plugin manifest, a rules file, or a skill) plus `AGENTS.md` at the root. Pick your host:
 
-MemPenny ships the native adapter file each host expects — a plugin manifest (`.codex-plugin/`, `gemini-extension.json`, `.devin-plugin/`), a rules file (`.cursor/rules/`, `.windsurf/rules/`, `.clinerules/`, `.kiro/steering/`, `.github/copilot-instructions.md`), or a skill (`.openclaw/skills/`) — plus `AGENTS.md` at the root for hosts that read it directly (CodeWhale, Swival). Install per your host's convention:
+| Host | Install |
+|---|---|
+| Codex | `codex plugin marketplace add marcelopaniza/mempenny`, then `/plugins` → install mempenny |
+| Gemini | `gemini extensions install https://github.com/marcelopaniza/mempenny` |
+| Antigravity (`agy`) | `agy plugin install https://github.com/marcelopaniza/mempenny` |
+| Devin | `devin plugins install marcelopaniza/mempenny` |
+| Hermes | `hermes plugins install marcelopaniza/mempenny --enable` |
+| OpenClaw | `clawhub install mempenny` |
+| Swival | `swival skills add --global https://github.com/marcelopaniza/mempenny` |
+| Cursor | copy [`.cursor/rules/mempenny.mdc`](.cursor/rules/mempenny.mdc) into your project |
+| Windsurf | copy [`.windsurf/rules/mempenny.md`](.windsurf/rules/mempenny.md) |
+| Cline | copy [`.clinerules/mempenny.md`](.clinerules/mempenny.md) |
+| Kiro | copy [`.kiro/steering/mempenny.md`](.kiro/steering/mempenny.md) into `~/.kiro/steering/` |
+| Copilot | copy [`.github/copilot-instructions.md`](.github/copilot-instructions.md) into your project |
+| CodeWhale | nothing to do — reads `AGENTS.md` automatically |
 
-- **Codex** — `codex plugin marketplace add marcelopaniza/mempenny`, then install mempenny.
-- **Gemini / Antigravity** — `gemini extensions install https://github.com/marcelopaniza/mempenny`.
-- **Cursor / Windsurf / Cline / Kiro / Copilot** — copy the matching file from this repo into your project.
-- **CodeWhale / Swival** — nothing to copy; they read `AGENTS.md` automatically.
-
-These get the **rules-only** tier (strategy, guards, write-time discipline); the scheduled nap runs only on Claude Code and opencode. Full matrix and rationale: [docs/host-and-model-compat.md](docs/host-and-model-compat.md).
+These get the **rules-only** tier (strategy, guards, write-time discipline); the scheduled nap runs only on Claude Code and opencode (it's a lifecycle hook, and these hosts have no equivalent). Full matrix and rationale: [docs/host-and-model-compat.md](docs/host-and-model-compat.md).
 
 ## Supported hosts & models
 

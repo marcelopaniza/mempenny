@@ -3,7 +3,7 @@
 **Status:** Draft, awaiting implementation
 **Proposed branch:** `feat/opencode-multi-model`
 **Target version:** `v1.2.0` (new minor — additive, no breaking changes to locked surface)
-**Author context:** Research performed from an opencode session running GLM, against a Claude Code-populated memory dir at `~/.claude/projects/-mnt-data-myproject/memory/`.
+**Author context:** Research performed from an opencode session, against a Claude Code-populated memory dir for the same project (the slug rule resolves it automatically — see §1.6).
 
 ---
 
@@ -206,7 +206,7 @@ With this shim, the existing `commands/*.md` files (copied to `.opencode/command
 
 **Gap:** `commands/clean.md` line 43 says "auto-detect `~/.claude/projects/<project-id>/memory/` from the current project's working directory mapping." This assumes Claude Code populated that dir. Opencode doesn't populate it.
 
-**Fix:** **Keep the slug rule as-is** — `sed 's|/|-|g; s|^-||'`. From opencode's cwd `/mnt/data/myproject`, the rule produces `-mnt-data-myproject`, and `~/.claude/projects/-mnt-data-myproject/memory/` exists because Claude Code sessions in the same project put it there. **This is the single biggest unblock:** opencode becomes a read/clean/restore client on Claude-authored memory, with zero setup. Already verified empirically — the dir exists.
+**Fix:** **Keep the slug rule as-is** — `sed 's|/|-|g; s|^-||'`. From opencode's cwd (e.g. `/home/you/projects/myapp`), the rule produces `-home-you-projects-myapp`, and `~/.claude/projects/-home-you-projects-myapp/memory/` exists because Claude Code sessions in the same project put it there. **This is the single biggest unblock:** opencode becomes a read/clean/restore client on Claude-authored memory, with zero setup.
 
 If the auto-resolved path doesn't exist, fall back to `--dir` prompt as today. No new logic, just confirmation that the existing rule keeps working cross-host.
 
