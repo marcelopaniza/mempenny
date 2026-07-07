@@ -1,6 +1,6 @@
 ---
 description: Per-entry reduction pass for an over-ceiling reference-topic file (charter/pending/worklog/support/traps/rules/decisions/reference). Distinct from memory-distill, which operates on a whole file. (opencode host adapter)
-agent: build
+agent: mempenny
 ---
 
 # MemPenny memory-curate — opencode host adapter

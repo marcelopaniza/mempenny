@@ -68,8 +68,10 @@ Copy [`AGENTS.md`](AGENTS.md) into your project root. That carries the ruleset: 
 | Host | Clean / Restore | Scheduled nap |
 |---|:---:|:---:|
 | Claude Code | ✅ | ✅ |
-| opencode | ✅ | ✅ (notify) |
+| opencode | ✅ | ✅ |
 | Any `AGENTS.md` reader | rules-only | — |
+
+On opencode, a scheduled nap fires a desktop notification pointing at `/mempenny-clean`; auto-invoke is reserved for a future release.
 
 MemPenny is tuned on Claude Sonnet/Opus and runs on GLM 4.6+, GPT-5, and Gemini 2.5. **Conservation is non-negotiable on every model** — a scripted check verifies nothing is lost before anything old is deleted. Distillation quality varies by model; see the compat doc for per-model notes.
 

@@ -18,7 +18,7 @@ These are independent:
 | Host | Tier | Clean / Restore | Scheduled nap | Notes |
 |---|---|:---:|:---:|---|
 | **Claude Code** | Full | ✅ | ✅ | Reference host. Commands: `/mempenny:clean` (colon). |
-| **opencode** | Full | ✅ | ✅ (notify) | Commands: `/mempenny-clean` (hyphen). Nap fires a desktop notification pointing at the command; auto-invoke is reserved for a future SDK path. Shares the same memory dir + config as Claude Code. |
+| **opencode** | Full | ✅ | ✅ | Commands: `/mempenny-clean` (hyphen). Nap fires a desktop notification pointing at the command; auto-invoke is reserved for a future SDK path. Shares the same memory dir + config as Claude Code. |
 | **Codex** | Rules-only | via `AGENTS.md` | — | Reads `AGENTS.md`. No first-class plugin port yet (planned v1.3). |
 | **Gemini / Antigravity** | Rules-only | via `AGENTS.md` | — | Reads `AGENTS.md`. |
 | **CodeWhale / Swival** | Rules-only | via `AGENTS.md` | — | Read `AGENTS.md` from the project root, zero setup. |
