@@ -1,6 +1,6 @@
 ---
 description: Schedule /mempenny-clean to run daily, weekly, or once. Fires the next time you open opencode in this project after the scheduled time, via a desktop notification. (opencode host adapter)
-agent: build
+agent: mempenny
 ---
 
 # MemPenny nap — opencode host adapter

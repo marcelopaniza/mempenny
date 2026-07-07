@@ -31,7 +31,7 @@ for name in \
     fi
 done
 
-for name in mempenny-env.ts mempenny-nap.ts; do
+for name in mempenny-env.ts mempenny-nap.ts mempenny-apply.ts; do
     link="$OC_ROOT/plugins/$name"
     if [ -L "$link" ]; then
         case "$(readlink "$link")" in
@@ -40,6 +40,15 @@ for name in mempenny-env.ts mempenny-nap.ts; do
         esac
     fi
 done
+
+# The scoped mempenny agent.
+link="$OC_ROOT/agents/mempenny.md"
+if [ -L "$link" ]; then
+    case "$(readlink "$link")" in
+        "$DATA_DIR"/*) rm -f "$link" ;;
+        *) echo "skip (not ours): $link -> $(readlink "$link")" ;;
+    esac
+fi
 
 # 2. Remove the DATA_DIR snapshot. Refuse if it's a symlink (F-M2).
 if [ -e "$DATA_DIR" ]; then

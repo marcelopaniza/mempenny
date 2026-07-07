@@ -1,6 +1,6 @@
 ---
 description: One-shot memory cleanup — triage + apply in a single pass. First run asks where backups should live; subsequent runs reuse that folder automatically. (opencode host adapter)
-agent: build
+agent: mempenny
 ---
 
 # MemPenny clean — opencode host adapter
@@ -47,3 +47,7 @@ opencode uses the hyphen namespace. The sibling commands are `/mempenny-nap`, `/
 - Arguments (`--dir`, `--only`, `--lang`, `--reconfigure`, `--yes`) parse from `$ARGUMENTS` exactly as the source's Step 1 describes.
 - `--yes` skips the apply confirmation gate; backup-first behavior is unchanged and `/mempenny-restore` reverses any pass.
 - The source's strict output contracts (migration `MIGRATION APPLIED:` / `MIGRATION FAILED:`, write `WRITE OK:` / `WRITE FAILED:`) are byte-exact — reproduce them verbatim.
+- **Prefer the custom tools for deterministic steps** (they collapse several shell calls into one verified operation, and the `mempenny` agent pre-approves them):
+  - Backup step → call the `mempenny-backup` tool with `{memory_dir, backup_root}` instead of running the `mkdir + cp -a + chmod + sha256sum` bash by hand. It returns `{backup_path, manifest}`. The bash block in the source remains the authoritative spec of what the step does; fall back to it only if the tool is unavailable.
+  - Config load → call the `mempenny-read-config` tool (no args) instead of the `jq` + symlink-check bash. It returns the parsed config (or `{missing: true}`).
+  - The conservation check and the write/verify landing script **stay bash** — they are hardened (v1.1.4) and not re-implemented as tools.

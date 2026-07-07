@@ -1,6 +1,6 @@
 ---
 description: Restore a memory-dir backup created by /mempenny-clean. Lists available backups, asks which one, takes a safety snapshot of the current state, then restores. (opencode host adapter)
-agent: build
+agent: mempenny
 ---
 
 # MemPenny restore — opencode host adapter
