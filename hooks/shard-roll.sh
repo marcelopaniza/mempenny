@@ -95,23 +95,24 @@ if [ -z "$G" ]; then
     exit 0
 fi
 
+rolled_any=0   # scalar flag (not ${#SHARD_RANGES[@]} — set -u quibbles on a declared-but-empty assoc array)
 case "$G" in
     year)  for period in "${!BY_YEAR[@]}"; do
              d=${period:0:4}; [ "$d" = "$TY" ] && continue   # keep current year
-             SHARD_RANGES["$STEM-$period.md"]="${BY_YEAR[$period]}"
+             SHARD_RANGES["$STEM-$period.md"]="${BY_YEAR[$period]}"; rolled_any=1
            done ;;
     month) for period in "${!BY_MONTH[@]}"; do
              [ "$period" = "$TY-$TM" ] && continue            # keep current month
-             SHARD_RANGES["$STEM-$period.md"]="${BY_MONTH[$period]}"
+             SHARD_RANGES["$STEM-$period.md"]="${BY_MONTH[$period]}"; rolled_any=1
            done ;;
     day)   for period in "${!BY_DAY[@]}"; do
              [ "$period" = "$TODAY" ] && continue              # keep today
-             SHARD_RANGES["$STEM-$period.md"]="${BY_DAY[$period]}"
+             SHARD_RANGES["$STEM-$period.md"]="${BY_DAY[$period]}"; rolled_any=1
            done ;;
 esac
 
 # Nothing older than the active period? nothing to do.
-if [ ${#SHARD_RANGES[@]} -eq 0 ]; then
+if [ "$rolled_any" -eq 0 ]; then
     echo "SHARD-ROLL OK: nothing to roll (active $G alone ${ACTIVE}B ≤ ceiling ${CEILING}B, no older periods)"
     exit 0
 fi
@@ -124,13 +125,17 @@ for shard in "${!SHARD_RANGES[@]}"; do
     for rng in "${RANGES[@]}"; do EXCL[$rng]=1; rolled_count=$((rolled_count + 1)); done
 done
 
-# Write each shard (append to existing if present — frozen shards accumulate) + collect names.
+# Write each shard. Shards are FROZEN once written — refuse if one already exists for
+# the period (F-M2: also catches a pre-placed symlink at the shard path that cat would
+# otherwise read through, and the frozen-shard invariant a re-roll would violate). One
+# frontmatter block per shard, written once.
 SHARD_NAMES=""
 for shard in "${!SHARD_RANGES[@]}"; do
     spath="$DIR/$shard"
+    { [ -e "$spath" ] || [ -L "$spath" ]; } && fail "shard already exists (frozen, refuse to modify): $shard"
+    [[ "$spath" =~ ^/[A-Za-z0-9/_.\ -]{1,4096}\.md$ ]] || fail "shard path fails C1/H1: $shard"
     s_tmp=$(mktemp "$DIR/.mempenny-shard-XXXXXXXX") || fail "mktemp failed"
     {
-        [ -f "$spath" ] && cat "$spath" && printf '\n'
         printf -- '---\ntype: %s-shard\nperiod: %s\n---\n\n' "$STEM" "$(basename "$shard" .md | sed "s/^${STEM}-//")"
         IFS=',' read -ra RANGES <<< "${SHARD_RANGES[$shard]}"
         for rng in "${RANGES[@]}"; do s=${rng%-*}; e=${rng#*-}; sed -n "${s},${e}p" "$FILE"; printf '\n'; done
@@ -138,6 +143,9 @@ for shard in "${!SHARD_RANGES[@]}"; do
     chmod 600 "$s_tmp"; mv "$s_tmp" "$spath"
     SHARD_NAMES="$SHARD_NAMES $shard"
 done
+# Deterministic Shards-index order (associative-array iteration is unspecified).
+# shellcheck disable=SC2086 # intentional word-splitting — shard names are space-free (H1)
+SHARD_NAMES=$(printf '%s\n' $SHARD_NAMES | sort | tr '\n' ' ')
 
 # Rebuild the parent: preamble (lines 1..PREAMBLE_END) + Shards index + every kept section.
 p_tmp=$(mktemp "$DIR/.mempenny-shard-XXXXXXXX") || fail "mktemp failed"
@@ -158,10 +166,15 @@ chmod 600 "$p_tmp"
 AFTER=$(wc -c < "$p_tmp" | tr -d ' ')
 mv "$p_tmp" "$FILE"
 
-# Conservation: parent + all shards written this run should account for the original.
+# Conservation gate (PENT-7/CR-6): parent-after + all shards must account for at least
+# the original bytes (they'll exceed it by the structural overhead — frontmatter, Shards
+# index). A drop would make the sum fall below TOTAL. Coarse but catches lost sections.
 SHARDS_BYTES=0
 for shard in $SHARD_NAMES; do
     sb=$(wc -c < "$DIR/$shard" | tr -d ' ')
     SHARDS_BYTES=$((SHARDS_BYTES + sb))
 done
-echo "SHARD-ROLL OK: $G; rolled $rolled_count section(s) into ${#SHARD_RANGES[@]} shard(s); parent ${TOTAL} -> ${AFTER} bytes; shards+parent conserving within overhead"
+if [ $((AFTER + SHARDS_BYTES)) -lt "$TOTAL" ]; then
+    fail "conservation floor violated: parent ${AFTER} + shards ${SHARDS_BYTES} < original ${TOTAL} (a section was lost)"
+fi
+echo "SHARD-ROLL OK: $G; rolled $rolled_count section(s) into ${#SHARD_RANGES[@]} shard(s); parent ${TOTAL} -> ${AFTER} bytes (+${SHARDS_BYTES} in shards; conservation floor held)"
