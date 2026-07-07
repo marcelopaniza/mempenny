@@ -24,11 +24,20 @@ export function slug(dir: string): string {
   return dir.replace(/\//g, "-").replace(/^-/, "")
 }
 
-// Resolve the MemPenny repo root by walking up to the directory that ships the
-// Claude plugin manifest (`.claude-plugin/plugin.json`). This sentinel is stable
-// whether the plugin is loaded from a checkout or copied into the config dir by
-// install/opencode.sh. Falls back to ../../<plugins> if the sentinel is missing.
+// Resolve the MemPenny root (the directory holding `commands/`, `locales/`,
+// `.claude-plugin/plugin.json`). Three install shapes, checked in order:
+//   1. $MEMPENNY_ROOT env (if it points at a real install) — automation escape hatch.
+//   2. ~/.local/share/mempenny — where install/opencode.sh copies the data tree
+//      for a global install. The plugins are symlinked into ~/.config/opencode/
+//      from there, so the walk-up below would NOT find this; check it explicitly.
+//   3. Walk up from this file to the `.claude-plugin/plugin.json` sentinel —
+//      covers project-level use (run opencode inside the mempenny checkout) and
+//      dev. Falls back to ../../<plugins> if none match.
 export function pluginRoot(): string {
+  const envRoot = safeAbsPath(process.env.MEMPENNY_ROOT)
+  if (envRoot && existsSync(join(envRoot, ".claude-plugin", "plugin.json"))) return envRoot
+  const dataInstall = join(homedir(), ".local", "share", "mempenny")
+  if (existsSync(join(dataInstall, ".claude-plugin", "plugin.json"))) return dataInstall
   let dir = import.meta.dir
   for (let i = 0; i < 10; i++) {
     if (existsSync(join(dir, ".claude-plugin", "plugin.json"))) return dir
