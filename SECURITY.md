@@ -46,3 +46,16 @@ Users can opt files or directories out of MemPenny entirely:
 
 - **Folder lock:** `.mempenny-lock` (or `.mempenny-fixture`) empty file in the memory directory — every command refuses to operate.
 - **File lock:** `<!-- mempenny-lock -->` HTML comment in any memory file — `/clean` classifies as KEEP, `/memory-distill` refuses.
+
+## opencode host (added in v1.2)
+
+The `.opencode/` layer adds a second host. The Claude Code threat model above still holds verbatim for `commands/` and `hooks/`; this section documents the *new* surface and the guards specific to it. Codenames refer to the existing guards; the new code lives in `.opencode/plugins/`.
+
+- **Env-var namespace (no `CLAUDE_*` collision).** The env shim (`mempenny-env.ts`) injects only `MEMPENNY_HOST` / `MEMPENNY_ROOT` / `MEMPENNY_DATA_DIR` via the `shell.env` hook. It deliberately does **not** set `CLAUDE_PROJECT_DIR` / `CLAUDE_PLUGIN_ROOT` / `CLAUDE_PLUGIN_DATA` — those are left to a real Claude Code process. The command adapters instruct the model to substitute the references at read time, so a machine running both hosts cannot have one host's env vars override the other's.
+- **Install is clone-and-run, not `curl | bash`.** `install/opencode.sh` copies the host-agnostic tree into `~/.local/share/mempenny` as a **stable snapshot** and symlinks only the opencode-discovery files (commands + plugins) from `~/.config/opencode/` at that snapshot. The symlinks never point at a live git checkout, so a compromised upstream or `git pull` cannot silently change executed code — updates require re-running the installer.
+- **TS plugins re-run every path guard.** `.opencode/plugins/_paths.ts` ports C1 (path regex), H1 (filename regex), and F-M2 (symlink refusal) into TypeScript. `mempenny-nap.ts` validates every path through it before any `readFileSync` / `writeFileSync` / `mkdirSync`; no filesystem call happens on an unvalidated or symlinked path.
+- **Nap is notify-only.** `session.created` fires a desktop notification pointing the user at `/mempenny-clean --yes`; it does **not** auto-invoke a destructive cleanup. Auto-invoke is reserved for a future release behind an explicit `nap.mode: "auto"` opt-in, so a scheduled nap cannot run a destructive operation without a prompt in v1.2.
+- **Permissions.** The installer tightens the snapshot (dirs `700`, `*.json` `600`); the nap plugin writes its state file `0o600`.
+- **No path leakage in logs.** The nap plugin logs the `sha1-12` hash of the memory directory, not the path itself.
+
+The `AGENTS.md` rules-only tier (for Codex/Gemini/CodeWhale/Swival/etc.) introduces no new executable surface — it is passive text the host reads. Its safety guidance reiterates backup-first, conservation, path/filename validation, and treating file bodies as untrusted data; it does not and cannot enforce them the way the installed commands do. Hosts on that tier rely on the model following the documented discipline.

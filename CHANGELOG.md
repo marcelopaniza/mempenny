@@ -2,6 +2,50 @@
 
 All notable changes to MemPenny are documented here. This project follows [semantic versioning](https://semver.org/).
 
+## [1.2.0] — 2026-07-07
+
+MemPenny now runs on **opencode** as a first-class host, and on any agent that reads an `AGENTS.md` (Codex, Gemini, CodeWhale, Swival, Cursor, Windsurf, and friends) at a rules-only tier. Claude Code is unchanged — the opencode layer is purely additive; existing users see zero behavior change.
+
+The full gap-by-gap plan this release was built from, plus the three pre-implementation reviews (code review, over-engineering review, security review) that shaped what shipped and what was cut, are in [`docs/pr-opencode-and-multi-model.md`](docs/pr-opencode-and-multi-model.md).
+
+### Added — opencode host (full tier)
+
+- `.opencode/plugins/` — three TS modules: `_paths.ts` (shared path helpers, porting the C1 / H1 / F-M2 guards into TypeScript), `mempenny-env.ts` (a `shell.env` shim injecting namespaced `MEMPENNY_*` vars), and `mempenny-nap.ts` (the `session.created` nap scheduler).
+- `.opencode/commands/mempenny-*.md` — eight thin command adapters. Single-source, not forked: each points the model at the canonical `commands/<src>.md` (the 4,000-line procedure, unchanged) and adds only the host-specific differences — env-var substitution, host-aware config path, auto-memory subroutine skipped, opencode Task-tool subagent syntax, and the hyphen command namespace.
+- `install/opencode.sh` / `install/uninstall-opencode.sh` — copy-and-symlink installer. Clone-at-tag-and-run only (no `curl | bash`); copies the host-agnostic tree to `~/.local/share/mempenny` as a stable snapshot and symlinks only the opencode-discovery files at it, so a compromised upstream or `git pull` cannot silently change executed code.
+- Shared memory and config with Claude Code: opencode resolves the same `~/.claude/projects/<slug>/memory/` directory and reads the same `~/.claude/mempenny.config.json` when that dir exists — a user running both hosts gets zero-setup continuity.
+
+### Added — multi-AI rules tier
+
+- `AGENTS.md` at the repo root — the host-agnostic ruleset (strategy hierarchy, forward-looking-truth principle, safety guards, write-time discipline). Claude Code and opencode auto-load it alongside the commands; rules-only hosts read it directly.
+- `docs/host-and-model-compat.md` — the full host × model matrix, what "rules-only" means and why (nap is a lifecycle hook; filesystem-mutating apply needs first-class command support), the non-negotiable conservation bar, and the design rationale.
+
+### Added — model-agnostic reliability
+
+- The opencode adapters defer to the source commands' already-strict output contracts (the triage table is one markdown table + totals block, nothing else) rather than re-specifying them — this avoids a conflicting schema and reinforces the contract for weaker-instruction-following models.
+- Namespaced env vars only (`MEMPENNY_*`); the opencode shim never sets `CLAUDE_*`, so it cannot collide with a real Claude Code install on the same machine.
+
+### Changed
+
+- README rewritten in a multi-AI voice; the topic-taxonomy diagram and the 8-file detail move off the main page (they already lived in `docs/advanced.md`, so nothing is lost). Install section now covers Claude Code, opencode, and the `AGENTS.md` tier; a host × model matrix replaces the single-host framing.
+- `SECURITY.md` gains an "opencode host (v1.2)" section documenting the new surface and the guards specific to it (env namespace, install model, TS path validation, notify-only nap, permissions, no path leakage in logs).
+- `.claude-plugin/plugin.json` and `marketplace.json` descriptions aligned to the multi-AI framing; version bumped to 1.2.0.
+
+### Nap on opencode is notify-only
+
+The Claude side nudges the model via `hookSpecificOutput.additionalContext`. opencode's `session.created` event has no equivalent context-injection path, so the v1.2 nap plugin fires a **desktop notification** pointing the user at `/mempenny-clean --yes` instead. Auto-invoking a destructive cleanup on every session start without a prompt is a consent/correctness risk we will not ship silently; `nap.mode: "auto"` is read and reserved for a future release once a verified SDK command-invoke path exists.
+
+### Cut from the original plan (over-engineering review)
+
+Two items were removed from the v1.2 scope as premature, and will return in v1.3 with evidence:
+
+- **Cross-model F1 ≥ 0.85 quality bar + four model-specific expected-output trees.** A solo repo with no CI LLM budget ships the cheap structural check now (`tests/run-smoke.sh` validates every fixture is well-formed and safe) and defers the per-model classification-quality bar until there is real failure data to score against. The non-negotiable conservation check already runs in every apply step regardless.
+- **A TS `mempenny-apply.ts` custom-tool layer (backup + verify helpers).** Backup and SHA-256 verify already exist as hardened bash in `commands/` (the M4 / M6 guards); duplicating them into TypeScript before confirming a model actually mis-handles the bash version would build two apply paths for one job. Returns in v1.3 if real cross-model file-handling drift appears.
+
+### Deferred (future releases)
+
+Deeper first-class plugin ports for Codex, Gemini/Antigravity, Hermes, Devin CLI, and OpenClaw — each needs its own manifest format and hook-event mapping verified against its docs, and several have no lifecycle-hook mechanism at all (so nap cannot run there). v1.2 covers those hosts at the rules-only tier via `AGENTS.md`.
+
 ## [1.1.6] — 2026-07-03
 
 Fixed the v1.1.5 taxonomy diagram: GitHub's Mermaid renderer didn't honor the `<small>` HTML tag or the custom font-family theme override the same way a local render did, so several node labels rendered at a size the auto-computed box was never sized for, clipping text (`goal & requireme`, `hazards discove`, etc.) — confirmed by screenshotting the actual live page, not just a local render. Removed both. Separately, switched the diagram from top-down to left-right: 8 boxes in one row was wider than GitHub's default diagram viewport, permanently hiding the last box behind the diagram widget's own zoom/pan controls regardless of label length; left-right grows the diagram vertically instead, which isn't width-constrained. Verified against the real github.com rendering (via a throwaway branch) before merging, not just a local Mermaid render — the local render had looked fine and still shipped a visibly broken diagram once.
