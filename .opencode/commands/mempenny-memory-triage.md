@@ -1,6 +1,6 @@
 ---
 description: Dry-run triage of an auto-memory directory. Produces a markdown table of proposed actions (delete / archive / distill / keep). No writes. (opencode host adapter)
-agent: build
+agent: mempenny
 ---
 
 # MemPenny memory-triage — opencode host adapter

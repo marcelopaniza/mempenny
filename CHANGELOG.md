@@ -2,6 +2,43 @@
 
 All notable changes to MemPenny are documented here. This project follows [semantic versioning](https://semver.org/).
 
+## [1.3.0] — 2026-07-07
+
+Two themes: lower the per-run friction on opencode, and make MemPenny installable on the other major AI hosts. Claude Code is unchanged; everything here is additive or rules-only.
+
+### Added — multi-host adapter files (rules-only tier)
+
+MemPenny now ships the native adapter file each major host expects, so it loads as first-class context on all of them without manual copying. Each is either a tiny manifest pointing at `AGENTS.md` or a compact rules file (a distillation of the strategy hierarchy, guards, and command list). All are **passive** — no new executable surface, hooks, or code on their target hosts.
+
+- **Codex** — `.codex-plugin/plugin.json` (installable via `codex plugin`).
+- **Gemini / Antigravity** — `gemini-extension.json` (`gemini extensions install`).
+- **Devin** — `.devin-plugin/plugin.json`.
+- **Hermes** — `plugin.yaml`.
+- **Cursor** — `.cursor/rules/mempenny.mdc`.
+- **Windsurf / Cline** — `.windsurf/rules/mempenny.md`, `.clinerules/mempenny.md`.
+- **Kiro / Copilot** — `.kiro/steering/mempenny.md`, `.github/copilot-instructions.md`.
+- **OpenClaw** — `.openclaw/skills/mempenny/SKILL.md`.
+- **Generic `.agents`** — `.agents/rules/mempenny.md` + `.agents/plugins/marketplace.json`.
+- **CodeWhale / Swival** — already covered by `AGENTS.md` (zero setup).
+
+The rules files are a compact distillation of `AGENTS.md` (the canonical, fuller version). Formats were verified against a working reference (the ponytail plugin's shipped adapters) rather than guessed. These hosts get the strategy + guards + write-time discipline; the scheduled nap remains Claude-Code/opencode-only (it is a lifecycle hook, and most of these hosts have no equivalent).
+
+### Added — opencode UX layer (less friction, less noise)
+
+- **Scoped `mempenny` agent** (`.opencode/agents/mempenny.md`). The opencode commands now run under a dedicated agent whose permissions are pre-relaxed only for mempenny's known-safe bash (an allowlist derived from the real command vocabulary) plus `external_directory` for mempenny's own paths. `rm` and any unlisted command still prompt — the one insurance line kept on. Applies only while a mempenny command runs; every other workflow keeps the default posture.
+- **Apply tools** (`.opencode/plugins/mempenny-apply.ts`). `mempenny-backup` and `mempenny-read-config` collapse the noisy deterministic bash (mkdir + cp + chmod + SHA-256 manifest; jq + symlink-guard + parse) into single clean tool calls. Every path is re-validated through `_paths.ts` (C1 + F-M2). The hardened conservation check and write/verify landing script are **deliberately not ported** — v1.1.4 settled their bash and a TS re-port would re-open those bugs; they stay bash everywhere.
+
+### Changed
+
+- README host matrix and install section expanded to cover all the new hosts honestly (rules-only everywhere except Claude Code and opencode).
+- `docs/host-and-model-compat.md` host table rewritten with the shipped adapter per host.
+- `SECURITY.md` gains a "multi-host adapter files (v1.3)" section documenting that they are passive, and an "opencode UX layer (v1.3)" section documenting the permission scope and the apply-tools scope limit.
+- Tiny visual fix: the misaligned `(notify)` removed from the nap matrix cells (info moved to a footnote / the Notes column).
+
+### Non-breakage
+
+`commands/`, `hooks/`, `skills/`, `locales/` remain byte-for-byte unchanged — the Claude Code path is unaffected. The opencode layer is additive (`.opencode/`); the new host adapters are passive files in their host-conventional paths. Version bumped to 1.3.0.
+
 ## [1.2.0] — 2026-07-07
 
 MemPenny now runs on **opencode** as a first-class host, and on any agent that reads an `AGENTS.md` (Codex, Gemini, CodeWhale, Swival, Cursor, Windsurf, and friends) at a rules-only tier. Claude Code is unchanged — the opencode layer is purely additive; existing users see zero behavior change.

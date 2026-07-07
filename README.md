@@ -59,17 +59,28 @@ cd mempenny && git checkout v1.2.0
 
 Commands are `/mempenny-clean`, `/mempenny-nap`, `/mempenny-restore`, `/mempenny-memory-*` (hyphen, not colon). If you also run Claude Code in this project, the two hosts share the same memory directory and config automatically — zero setup.
 
-**Other agents** — Codex, Gemini, CodeWhale, Swival, Cursor, Windsurf, …
+**Other agents** — Codex, Gemini/Antigravity, Devin, Cursor, Windsurf, Cline, Kiro, Copilot, CodeWhale, Swival, OpenClaw
 
-Copy [`AGENTS.md`](AGENTS.md) into your project root. That carries the ruleset: the strategy hierarchy (delete > archive > distill > keep), the safety guards, and the write-time discipline. No hooks and no auto-schedule on this tier — you run the cleanup yourself, following the guide. Full matrix and rationale: [docs/host-and-model-compat.md](docs/host-and-model-compat.md).
+MemPenny ships the native adapter file each host expects — a plugin manifest (`.codex-plugin/`, `gemini-extension.json`, `.devin-plugin/`), a rules file (`.cursor/rules/`, `.windsurf/rules/`, `.clinerules/`, `.kiro/steering/`, `.github/copilot-instructions.md`), or a skill (`.openclaw/skills/`) — plus `AGENTS.md` at the root for hosts that read it directly (CodeWhale, Swival). Install per your host's convention:
+
+- **Codex** — `codex plugin marketplace add marcelopaniza/mempenny`, then install mempenny.
+- **Gemini / Antigravity** — `gemini extensions install https://github.com/marcelopaniza/mempenny`.
+- **Cursor / Windsurf / Cline / Kiro / Copilot** — copy the matching file from this repo into your project.
+- **CodeWhale / Swival** — nothing to copy; they read `AGENTS.md` automatically.
+
+These get the **rules-only** tier (strategy, guards, write-time discipline); the scheduled nap runs only on Claude Code and opencode. Full matrix and rationale: [docs/host-and-model-compat.md](docs/host-and-model-compat.md).
 
 ## Supported hosts & models
 
 | Host | Clean / Restore | Scheduled nap |
 |---|:---:|:---:|
 | Claude Code | ✅ | ✅ |
-| opencode | ✅ | ✅ (notify) |
-| Any `AGENTS.md` reader | rules-only | — |
+| opencode | ✅ | ✅ |
+| Codex / Gemini / Devin | rules-only | — |
+| Cursor / Windsurf / Cline / Kiro / Copilot | rules-only | — |
+| CodeWhale / Swival / OpenClaw | rules-only | — |
+
+On opencode, a scheduled nap fires a desktop notification pointing at `/mempenny-clean`; auto-invoke is reserved for a future release.
 
 MemPenny is tuned on Claude Sonnet/Opus and runs on GLM 4.6+, GPT-5, and Gemini 2.5. **Conservation is non-negotiable on every model** — a scripted check verifies nothing is lost before anything old is deleted. Distillation quality varies by model; see the compat doc for per-model notes.
 

@@ -1,0 +1,15 @@
+{
+  "name": "mempenny",
+  "owner": {
+    "name": "Marcelo Paniza",
+    "url": "https://github.com/marcelopaniza"
+  },
+  "plugins": [
+    {
+      "name": "mempenny",
+      "description": "Memory hygiene for any AI coding agent. Tidy the auto-memory directory; backup-first, reversible.",
+      "source": "./",
+      "category": "productivity"
+    }
+  ]
+}

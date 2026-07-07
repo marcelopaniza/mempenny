@@ -1,6 +1,6 @@
 ---
 description: Apply a previously approved triage table to an auto-memory directory. Creates a full backup first. Rolls back on failure. (opencode host adapter)
-agent: build
+agent: mempenny
 ---
 
 # MemPenny memory-apply — opencode host adapter

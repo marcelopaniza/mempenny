@@ -15,21 +15,28 @@ These are independent:
 
 ## Host matrix
 
-| Host | Tier | Clean / Restore | Scheduled nap | Notes |
+| Host | Tier | Clean / Restore | Scheduled nap | Adapter shipped |
 |---|---|:---:|:---:|---|
-| **Claude Code** | Full | ✅ | ✅ | Reference host. Commands: `/mempenny:clean` (colon). |
-| **opencode** | Full | ✅ | ✅ (notify) | Commands: `/mempenny-clean` (hyphen). Nap fires a desktop notification pointing at the command; auto-invoke is reserved for a future SDK path. Shares the same memory dir + config as Claude Code. |
-| **Codex** | Rules-only | via `AGENTS.md` | — | Reads `AGENTS.md`. No first-class plugin port yet (planned v1.3). |
-| **Gemini / Antigravity** | Rules-only | via `AGENTS.md` | — | Reads `AGENTS.md`. |
-| **CodeWhale / Swival** | Rules-only | via `AGENTS.md` | — | Read `AGENTS.md` from the project root, zero setup. |
-| **Cursor / Windsurf / Cline** | Rules-only | copy the rules file | — | Copy `AGENTS.md` (or the matching rules dir) into the project. |
-| **Devin CLI / Hermes / OpenClaw** | Rules-only | via `AGENTS.md` | — | Planned deeper ports in a later release. |
+| **Claude Code** | Full | ✅ | ✅ | `.claude-plugin/` (reference). Commands: `/mempenny:clean` (colon). |
+| **opencode** | Full | ✅ | ✅ | `.opencode/` (env shim + notify-only nap + thin adapters). Commands: `/mempenny-clean` (hyphen). Shares the memory dir + config with Claude Code. |
+| **Codex** | Rules-only | via `AGENTS.md` | — | `.codex-plugin/plugin.json` manifest. Installable via `codex plugin`. |
+| **Gemini / Antigravity** | Rules-only | via `AGENTS.md` | — | `gemini-extension.json` (`contextFileName: AGENTS.md`). `gemini extensions install <repo>`. |
+| **Devin** | Rules-only | via `AGENTS.md` | — | `.devin-plugin/plugin.json` manifest. |
+| **Hermes** | Rules-only | via `AGENTS.md` | — | `plugin.yaml`. |
+| **Cursor** | Rules-only | copy rules file | — | `.cursor/rules/mempenny.mdc`. |
+| **Windsurf / Cline** | Rules-only | copy rules file | — | `.windsurf/rules/mempenny.md`, `.clinerules/mempenny.md`. |
+| **Kiro / Copilot** | Rules-only | copy rules file | — | `.kiro/steering/mempenny.md`, `.github/copilot-instructions.md`. |
+| **CodeWhale / Swival** | Rules-only | via `AGENTS.md` | — | Zero setup — read `AGENTS.md` from the project root. |
+| **OpenClaw** | Rules-only | skill | — | `.openclaw/skills/mempenny/SKILL.md`. |
 
 **Why "rules-only" for most hosts.** MemPenny's core mechanics are a lifecycle
 hook (the nap scheduler), a bash script, subagent spawning, and filesystem-
-mutating apply logic. A rules-only host loads `AGENTS.md` and follows the cleanup
-procedure manually — the strategy, guards, and discipline hold, but there is no
-auto-schedule and the commands are not installed as first-class slash commands.
+mutating apply logic. A rules-only host loads the ruleset (via `AGENTS.md` or
+its native rules file) and follows the cleanup procedure manually — the strategy,
+guards, and discipline hold, but there is no auto-schedule and the commands are
+not installed as first-class slash commands. The rules files are a compact
+distillation of `AGENTS.md` (the canonical, fuller version); keep them aligned
+when editing.
 
 ## Model matrix
 

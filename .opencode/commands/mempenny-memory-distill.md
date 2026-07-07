@@ -1,6 +1,6 @@
 ---
 description: Distill a single memory file in-place — replace prose narrative with 1-3 sentences of forward-looking truth. (opencode host adapter)
-agent: build
+agent: mempenny
 ---
 
 # MemPenny memory-distill — opencode host adapter

@@ -1,6 +1,6 @@
 ---
 description: Close finished calendar years out of an over-ceiling log-topic file (worklog/support/decisions) into a locked topic-YYYY.md shard, and update the parent's Shards index. (opencode host adapter)
-agent: build
+agent: mempenny
 ---
 
 # MemPenny memory-shard-roll — opencode host adapter

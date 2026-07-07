@@ -65,14 +65,18 @@ for cmd in "$DATA_DIR"/.opencode/commands/*.md; do
     ln -sfn "$cmd" "$OC_ROOT/commands/$name"
 done
 
-# Plugins: only the two real Plugin exports. _paths.ts is imported relatively by
-# both (Bun resolves the relative import through the symlink to DATA_DIR), so it
-# is intentionally NOT symlinked into OC_ROOT — opencode would otherwise try to
-# load it as a standalone plugin and it exports no Plugin function.
+# Plugins: only the real Plugin exports. _paths.ts is imported relatively by
+# the others (Bun resolves the relative import through the symlink to DATA_DIR),
+# so it is intentionally NOT symlinked into OC_ROOT — opencode would otherwise
+# try to load it as a standalone plugin and it exports no Plugin function.
 mkdir -p "$OC_ROOT/plugins"
-for plug in mempenny-env.ts mempenny-nap.ts; do
+for plug in mempenny-env.ts mempenny-nap.ts mempenny-apply.ts; do
     ln -sfn "$DATA_DIR/.opencode/plugins/$plug" "$OC_ROOT/plugins/$plug"
 done
+
+# Agent: the scoped mempenny agent (relaxed permissions for mempenny runs only).
+mkdir -p "$OC_ROOT/agents"
+ln -sfn "$DATA_DIR/.opencode/agents/mempenny.md" "$OC_ROOT/agents/mempenny.md"
 
 echo "Done."
 echo
