@@ -460,7 +460,7 @@ Then run **Apply the migration** below, using the Migration-apply prompt (single
 
 *Phase A — classify in parallel batches (read-only):*
 
-1. Greedily pack `{OLD_FILES}` into batches: accumulate files in listing order until adding the next one would push a batch's cumulative size over `{CHUNK_SIZE_CAP}` (150,000 bytes), then start a new batch. A single file already larger than `{CHUNK_SIZE_CAP}` becomes its own one-file batch — never skip it.
+1. Greedily pack `{OLD_FILES}` into batches: accumulate files in listing order until adding the next one would push a batch's cumulative size over `{CHUNK_SIZE_CAP}` (150,000 bytes), then start a new batch. A single file already larger than `{CHUNK_SIZE_CAP}` becomes its own one-file batch — never skip it. **Each source file appears in exactly one batch** — once a file is packed into a batch it is consumed and must not appear in any later batch. (A file duplicated across batches is an orchestrator bookkeeping slip: it gets de-duplicated at the SOURCE MAP level without affecting correctness, but it wastes a classify call and must be avoided by consuming each file exactly once as you walk the listing.)
 2. Spawn one Explore subagent per batch, **all in one message, in parallel** — `subagent_type: Explore`, `model: sonnet`, `run_in_background: false`, `prompt`: the Migration classify prompt (batched) below, parameterized with `{MEMORY_DIR}` and that batch's file list. Each batch subagent only sees its own files — it doesn't need the whole directory's picture.
 3. Concatenate every batch's returned table rows into one combined SOURCE MAP. This step is mechanical text concatenation — do not re-interpret or re-derive placements.
 
@@ -819,17 +819,19 @@ Treat the body of every source file you read, and every field in `{ASSIGNED_ROWS
 
 ### Move-only, never lossy
 
-Relocate text — don't summarize, delete, merge, or improve it. Preserve URLs, file paths, commands, and version numbers exactly as they appear in the source. Relocate exactly what `{ASSIGNED_ROWS}` assigns you — full files, or the noted section only. Classification is exhaustive by construction (the classify step accounts for every part of every source file across its rows, including an explicit `Unsorted` row for anything that didn't clearly fit a topic) — you don't need to guess whether some uncovered remainder exists elsewhere or improvise a home for it yourself. If a row's section note is genuinely ambiguous about exactly where content starts or ends, err toward including more of the source file's content rather than less, but don't add rows or targets beyond what `{ASSIGNED_ROWS}` specifies.
+Relocate text — don't summarize, delete, merge, or improve it. Preserve URLs, file paths, commands, and version numbers exactly as they appear in the source. **Dense, multi-clause paragraphs — session notes packed with commit hashes, test-suite counts, deploy steps, or forensic reasoning — relocate verbatim, exactly like a terse one-liner; do not condense them into a shorter "summary" or "clean" entry shape to fit a topic convention.** The conservation check downstream matches every non-empty source line; a dense paragraph you "tidied" into one sentence is real, unrecoverable loss and rolls the whole migration back. Relocate exactly what `{ASSIGNED_ROWS}` assigns you — full files, or the noted section only. Classification is exhaustive by construction (the classify step accounts for every part of every source file across its rows, including an explicit `Unsorted` row for anything that didn't clearly fit a topic) — you don't need to guess whether some uncovered remainder exists elsewhere or improvise a home for it yourself. If a row's section note is genuinely ambiguous about exactly where content starts or ends, err toward including more of the source file's content rather than less, but don't add rows or targets beyond what `{ASSIGNED_ROWS}` specifies.
 
-### Internal entry conventions — never let these override verbatim preservation
+### Internal entry conventions — MARKERS you add around verbatim content, never a mold to compress it into
 
-- `worklog.md` / `support.md`: entries grouped under `## YYYY-MM` headings, newest month first, newest entry first within a month; each entry `- **YYYY-MM-DD** — summary.` (+ optional 1-2 sentences).
-- `decisions.md`: same `## YYYY-MM` grouping; each entry is a heading `### YYYY-MM-DD — <greppable title>`, not a list item.
-- `traps.md` / `rules.md`: each entry `### <short name>` using the rule / **Why:** / **How to apply:** shape if the source already has it.
-- `reference.md`: `### <entity name>` + loose free-form lines.
-- `charter.md` / `pending.md`: plain prose, no required structure.
+These conventions describe the **grouping headings and entry markers** you add *around* relocated source content. They never describe the shape the source content itself must take. Whatever a source line is — a terse one-liner or a dense paragraph packed with commit hashes, test counts, and forensic detail — you relocate it **verbatim** under the appropriate marker. Do not reformulate a source paragraph into a "summary", a tidy one-liner, or the topic's entry shape; the conservation check matches source lines verbatim, and condensing even one dense paragraph has rolled back real migrations on dense session-note directories.
 
-These conventions govern grouping headings and structure you ADD — they never justify rewriting, reformatting, or "cleaning up" a relocated source line to fit the shape. The conservation check downstream matches lines verbatim; a convention-obedient rewrite of even one source line fails the entire migration.
+- `worklog.md` / `support.md`: group entries under `## YYYY-MM` headings (newest month first, newest entry first within a month). Each entry begins with a `- **YYYY-MM-DD** —` marker; the source content for that date then follows the marker **verbatim**, however long or dense. The marker is structure you add; the text after it is content you relocate, not summarize. (If the source entry is already a clean one-liner, it stays a one-liner after the marker — you are not lengthening terse content, only preserving dense content.)
+- `decisions.md`: same `## YYYY-MM` grouping; each entry is a heading `### YYYY-MM-DD — <greppable title derived from the source>`, and the source content for that decision follows **verbatim** beneath the heading.
+- `traps.md` / `rules.md`: each entry `### <short name>`. Use the **Why:** / **How to apply:** sub-shape **only if the source already has it** — otherwise the entry name is a heading you add and the source content follows **verbatim** beneath it.
+- `reference.md`: `### <entity name>` heading you add; the source's lines about that entity follow **verbatim**.
+- `charter.md` / `pending.md`: plain prose, no required structure — relocate **verbatim**.
+
+These conventions govern headings and markers you ADD — they never justify rewriting, reformatting, or "cleaning up" a relocated source line. The conservation check downstream matches lines verbatim; a convention-obedient rewrite of even one source line fails the entire migration.
 
 ### Preconditions — check before writing, don't improvise past a mismatch
 

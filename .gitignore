@@ -35,3 +35,6 @@ node_modules/
 # Triage scratch output — these are per-machine, not source
 triage_table.md
 /memory.backup-*/
+
+# Diagnostic artifacts from failed runs (may name real projects/paths — never commit)
+*-migration-failed.md
