@@ -2,6 +2,28 @@
 
 All notable changes to MemPenny are documented here. This project follows [semantic versioning](https://semver.org/).
 
+## [1.3.1] — 2026-07-07
+
+Fixes the topic-taxonomy migration failing (clean rollback) on dense memory directories — session-note files packed with commit hashes, test counts, and forensic paragraphs. **No data was ever at risk:** the conservation check caught every case and rolled back atomically; this is a reliability fix so the migration actually completes on dense content instead of failing the conservation gate.
+
+### Root cause
+
+The Phase B write prompt's "Internal entry conventions" described the `worklog.md` / `support.md` entry shape as `- **YYYY-MM-DD** — summary. (+ optional 1-2 sentences)`. The word **"summary"** directly invited the write subagents to condense dense source paragraphs into 1-2 sentence entries — contradicting the move-only rule. A real run on a 41-file, ~279 KB directory hit this exactly: 17 write chunks all returned `WRITE OK`, but the Phase C conservation check found 124 source lines that had been summarized away rather than relocated verbatim, and rolled the run back cleanly. The byte-verification landing script was never at fault — the bytes that landed matched the fragments composed; the fragments themselves had dropped content.
+
+### Fixed
+
+- **Conventions reframed as markers, not a content mold.** The entry conventions now describe the grouping headings and entry markers the write subagent adds *around* relocated content; the source content itself follows the marker **verbatim**, however long or dense. The trap word "summary" is gone; the conventions explicitly say a dense paragraph stays a dense paragraph (commit hashes and all), and a terse one-liner stays a one-liner. Applies to all eight topics (worklog/support/decisions/traps/rules/reference/charter/pending).
+- **Move-only rule strengthened** with an explicit anti-summarization clause naming the exact failure mode (dense session notes → do not condense into a shorter entry shape), so the general rule and the conventions now reinforce each other instead of conflicting.
+- **Batch-packing de-duplication.** The Phase A greedy-packing rule now states each source file appears in exactly one batch (an earlier run had one file slip into two batches; it was de-duplicated at the SOURCE MAP level without affecting correctness, but it wasted a classify call and is now called out as a bookkeeping slip to avoid).
+
+### Hygiene
+
+- `.gitignore` now excludes `*-migration-failed.md` so diagnostic artifacts from failed runs (which can name real projects and paths) can't be committed by accident.
+
+### Why the safety model held
+
+The migration's no-confirmation-gate design is acceptable only because the conservation check is a hard gate: it matches every non-empty source line against the new corpus, and on any unaccounted line it deletes the partially-written topic files and leaves every old file byte-identical. That property held exactly as designed — the bug was that the migration failed *more often than it should* on dense directories, not that any content was lost. The backup-first discipline and the verify-before-delete check are unchanged.
+
 ## [1.3.0] — 2026-07-07
 
 Two themes: lower the per-run friction on opencode, and make MemPenny installable on the other major AI hosts. Claude Code is unchanged; everything here is additive or rules-only.
