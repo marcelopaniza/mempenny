@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "mempenny",
-  "description": "Your Claude memory companion. Turn it on, keep it lean, schedule the upkeep, reverse anything.",
+  "description": "Memory hygiene for any AI coding agent. Turn it on, keep it lean, schedule the upkeep, reverse anything.",
   "owner": {
     "name": "Marcelo Paniza",
     "url": "https://github.com/marcelopaniza"
@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "mempenny",
-      "description": "Your Claude memory companion. Turn it on, keep it lean, schedule the upkeep, reverse anything.",
+  "description": "Memory hygiene for any AI coding agent. Turn it on, keep it lean, schedule the upkeep, reverse anything.",
       "source": "./",
       "category": "productivity"
     }

@@ -1,17 +1,18 @@
 # MemPenny
 
-**Your Claude memory companion. Turn it on, keep it lean, schedule the upkeep, reverse anything.**
+**Memory hygiene for any AI coding agent. Turn it on, keep it lean, schedule the upkeep, reverse anything.**
 
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](CHANGELOG.md)
-[![Platform](https://img.shields.io/badge/platform-Claude%20Code-orange.svg)](#install)
+[![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)](CHANGELOG.md)
+[![Platform](https://img.shields.io/badge/platform-Claude%20Code%20%C2%B7%20opencode-orange.svg)](#install)
 [![Backups](https://img.shields.io/badge/backups-always%20first-yellow.svg)](SECURITY.md)
-[![Reviewed](https://img.shields.io/badge/reviewed-code%20review%20%2B%20pentest-brightgreen.svg)](SECURITY.md)
 [![Locales](https://img.shields.io/badge/locales-3%20languages-blue.svg)](locales/README.md)
 
-Claude's memory grows. Old notes pile up. The signal gets buried. MemPenny tidies it — and Claude's next session starts sharper.
+Your agent's memory grows. Old notes pile up. The signal gets buried. MemPenny tidies it — and the next session starts sharper.
 
-It also keeps memory from ever concentrating into one runaway file. A fixed, AI-friendly structure — organized by topic, sharded by year as it grows — so no single file ever outgrows what's actually useful.
+It runs on **Claude Code** and **opencode**, and any agent that reads an `AGENTS.md` (Codex, Gemini, CodeWhale, Swival, Cursor, Windsurf, and friends). Same memory directory, same commands, same safety net. If you switch hosts mid-project, the tidied memory comes with you.
+
+## Before / after
 
 | | Files | Size |
 |---|---:|---:|
@@ -19,68 +20,28 @@ It also keeps memory from ever concentrating into one runaway file. A fixed, AI-
 | After | 227 | 458 KB |
 | **Change** | **−46%** | **−63%** |
 
-A real second-pass run; full case study: [Real-world results](docs/real-world-results.md).
+A real second-pass run on a real memory directory. Full case study: [docs/real-world-results.md](docs/real-world-results.md).
 
-Two ways:
+## Two ways to use it
 
-- **Clean now** — `/mempenny:clean`. One command. Minute or two. You see the proposal, say yes, done.
-- **Set a learning nap** — `/mempenny:nap`. Pick a schedule (daily / weekly / once). MemPenny tidies on your next Claude Code session — backup-first, no prompts, fully reversible. Each pass leaves Claude with cleaner notes to learn from next time.
+- **Clean now** — one command. You see the proposal, you say yes, done. A minute or two.
+- **Set a nap** — pick a schedule (daily / weekly / once). MemPenny tidies on your next session. Backup-first, no prompts, fully reversible.
 
-What it does:
+## What it does
 
 - Drops what's clearly stale.
-- Files away historical stuff (still searchable, just out of the way).
-- Trims bloated notes to one or two lines.
+- Files the historical stuff away (still searchable, just out of the way).
+- Trims bloated notes to a line or two.
 - Spots duplicates and keeps the best one.
 - Flags files that contradict each other so you can sort them out.
-- Organizes what's kept into a fixed set of topic files, so nothing sprawls into hundreds of one-off notes. *(New in v1.1 — existing projects convert automatically.)*
-- Leaves alone files and folders you mark off-limits.
+- Keeps what's left in a small, fixed set of topic files — nothing sprawls into hundreds of one-off notes.
+- Leaves alone anything you mark off-limits.
 
-Don't like a change? `/mempenny:restore` puts everything back. Backup-first, always.
-
-## How memory is organized
-
-Three levels, max — a cold Claude session never needs more than 3 file-opens to find anything.
-
-```mermaid
-flowchart LR
-    M(["✦ MEMORY.md<br/>tiny index · 8 fixed routes"])
-
-    M --> C["🧭 charter.md<br/>goal & requirements"]
-    M --> P["⚡ pending.md<br/>in-flight work"]
-    M --> T["⚠️ traps.md<br/>hazards found"]
-    M --> R["📜 rules.md<br/>standing rules"]
-    M --> F["🔎 reference.md<br/>who/what is X"]
-    M --> W["🚢 worklog.md<br/>shipped changes"]
-    M --> S["🤝 support.md<br/>help given"]
-    M --> D["⚖️ decisions.md<br/>why X over Y"]
-
-    classDef root fill:#172033,stroke:#6EE7B7,stroke-width:3px,color:#FFFFFF;
-    classDef charter fill:#EAF7FF,stroke:#38BDF8,stroke-width:2px,color:#172033;
-    classDef pending fill:#FFF7E6,stroke:#F59E0B,stroke-width:2px,color:#172033;
-    classDef traps fill:#FFF1F2,stroke:#F43F5E,stroke-width:2px,color:#172033;
-    classDef rules fill:#F5F3FF,stroke:#8B5CF6,stroke-width:2px,color:#172033;
-    classDef reference fill:#ECFDF5,stroke:#10B981,stroke-width:2px,color:#172033;
-    classDef worklog fill:#EEF2FF,stroke:#6366F1,stroke-width:2px,color:#172033;
-    classDef support fill:#F0FDFA,stroke:#14B8A6,stroke-width:2px,color:#172033;
-    classDef decisions fill:#F8FAFC,stroke:#64748B,stroke-width:2px,color:#172033;
-
-    class M root;
-    class C charter;
-    class P pending;
-    class T traps;
-    class R rules;
-    class F reference;
-    class W worklog;
-    class S support;
-    class D decisions;
-```
-
-`charter`/`pending` never auto-reduce (they're exempt — distilling requirements is destructive). `traps`/`rules`/`reference` get curated entry-by-entry in place once they grow too large. `worklog`/`support`/`decisions` shard into locked, frozen yearly files instead, once a year closes out — the active file stays current-year-sized forever.
-
-Full spec: [docs/memory-taxonomy-design.md](docs/memory-taxonomy-design.md).
+Don't like a change? One command puts everything back. Backup-first, always.
 
 ## Install
+
+**Claude Code**
 
 ```
 /plugin marketplace add marcelopaniza/mempenny
@@ -88,18 +49,58 @@ Full spec: [docs/memory-taxonomy-design.md](docs/memory-taxonomy-design.md).
 /reload-plugins
 ```
 
-## Requirements
+**opencode** (available from v1.2.0)
 
-- Claude Code with auto-memory enabled. (MemPenny detects if it's off and offers to turn it on.)
+```bash
+git clone https://github.com/marcelopaniza/mempenny.git
+cd mempenny && git checkout v1.2.0
+./install/opencode.sh
+```
+
+Commands are `/mempenny-clean`, `/mempenny-nap`, `/mempenny-restore`, `/mempenny-memory-*` (hyphen, not colon). If you also run Claude Code in this project, the two hosts share the same memory directory and config automatically — zero setup.
+
+**Other agents** — Codex, Gemini, CodeWhale, Swival, Cursor, Windsurf, …
+
+Copy [`AGENTS.md`](AGENTS.md) into your project root. That carries the ruleset: the strategy hierarchy (delete > archive > distill > keep), the safety guards, and the write-time discipline. No hooks and no auto-schedule on this tier — you run the cleanup yourself, following the guide. Full matrix and rationale: [docs/host-and-model-compat.md](docs/host-and-model-compat.md).
+
+## Supported hosts & models
+
+| Host | Clean / Restore | Scheduled nap |
+|---|:---:|:---:|
+| Claude Code | ✅ | ✅ |
+| opencode | ✅ | ✅ (notify) |
+| Any `AGENTS.md` reader | rules-only | — |
+
+MemPenny is tuned on Claude Sonnet/Opus and runs on GLM 4.6+, GPT-5, and Gemini 2.5. **Conservation is non-negotiable on every model** — a scripted check verifies nothing is lost before anything old is deleted. Distillation quality varies by model; see the compat doc for per-model notes.
+
+## Commands
+
+| Command | What it does |
+|---|---|
+| `/mempenny-clean` | One-shot tidy: triage → show → apply. Backup-first. |
+| `/mempenny-nap` | Schedule a recurring clean. |
+| `/mempenny-restore` | Reverse any pass. |
+| `/mempenny-memory-triage` | Dry-run: propose actions, change nothing. |
+| `/mempenny-memory-apply` | Apply a triage table. |
+| `/mempenny-memory-distill` | Shrink one file to its load-bearing lines. |
+| `/mempenny-memory-curate` | Reduce a topic file entry-by-entry. |
+| `/mempenny-memory-shard-roll` | Close a finished year into a locked shard. |
+
+Claude Code uses the colon namespace (`/mempenny:clean`, etc.) — same commands, two spellings.
+
+## Safety, in one screen
+
+- **Backup-first.** Every change is preceded by a full backup. `/mempenny-restore` reverses anything.
+- **Nothing lost.** A scripted conservation check runs before any old file is deleted.
+- **Path-locked.** Tight validation on every path and filename; symlinks refused at sensitive points.
+- **Off-limits by default.** A `.mempenny-lock` file or a `<!-- mempenny-lock -->` comment opts anything out.
+
+Full threat model and every codenamed guard: [SECURITY.md](SECURITY.md).
+
+## Advanced
+
+Full command reference, flags, config schema, the topic taxonomy, backup retention, localization, and how it all works under the hood: **[docs/advanced.md](docs/advanced.md)**.
 
 ## License
 
 MIT — see [LICENSE](./LICENSE).
-
----
-
-## Advanced
-
-Full command reference, flags, config schema, manual rollback, backup retention, localization, and how it all works under the hood: **[docs/advanced.md](docs/advanced.md)**.
-
-Design spec for the topic taxonomy specifically: [docs/memory-taxonomy-design.md](docs/memory-taxonomy-design.md).
