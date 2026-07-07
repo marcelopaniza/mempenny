@@ -1,0 +1,15 @@
+name: mempenny
+version: 1.3.0
+description: "Memory hygiene for any AI coding agent — tidy the auto-memory directory (drop stale, archive historical, distill verbose, organize into a fixed topic set). Backup-first, always reversible. Rules-only on Hermes: AGENTS.md is loaded as always-on context."
+author: Marcelo Paniza
+provides_commands:
+  - mempenny-clean
+  - mempenny-nap
+  - mempenny-restore
+  - mempenny-memory-triage
+  - mempenny-memory-apply
+  - mempenny-memory-distill
+  - mempenny-memory-curate
+  - mempenny-memory-shard-roll
+provides_skills:
+  - memory-hygiene
