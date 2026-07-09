@@ -63,21 +63,51 @@ for t in $RESERVED; do
 done
 
 # --- build each topic file atomically: frontmatter + per-source heading + verbatim content ---
+# Log-topics (worklog/support/decisions) are grouped under ## YYYY-MM-DD day headings (newest
+# first; undated last) so shard-roll has day-level boundaries to aggregate into month/year
+# shards. Non-log topics stay flat (### file + verbatim). Either way, content is cat'd verbatim.
+LOG_TOPICS="worklog support decisions"
 for t in $topics_present; do
     tmp=$(mktemp "${MEMORY_DIR}/.mempenny-move-XXXXXXXX") || fail "mktemp failed"
     {
         printf -- '---\ntype: %s\n---\n\n' "$t"
-        for i in $(seq 0 $((n-1))); do
-            f=$(jq -r ".[$i].file"  "$PLAN_PATH")
-            tt=$(jq -r ".[$i].topic" "$PLAN_PATH")
-            [ "$tt" = "$t" ] || continue
-            # The old MEMORY.md is the pre-migration index; its lines are conserved
-            # verbatim under an explicit archive heading.
-            [ "$f" = "MEMORY.md" ] && printf -- '## Archived pre-migration index\n\n'
-            printf -- '### %s\n\n' "$f"
-            cat "$MEMORY_DIR/$f"
-            printf -- '\n\n'
-        done
+        case " $LOG_TOPICS " in
+            *" $t "*)
+                # log-topic: group by date (## YYYY-MM-DD), newest first. Process substitution
+                # (not a pipe) so last_hdr persists across iterations in this shell. Delimiter is
+                # '|' (not tab) so an empty date field is preserved — read strips leading IFS
+                # *whitespace*, which would drop an undated entry's empty date and mis-split.
+                last_hdr=""
+                while IFS='|' read -r d f; do
+                    [ "$d" = "null" ] && d=""
+                    if [ "$f" = "MEMORY.md" ]; then
+                        hdr="## Archived pre-migration index"
+                    else
+                        hdr=$([ -z "$d" ] && echo "## Undated" || echo "## $d")
+                    fi
+                    [ "$hdr" != "$last_hdr" ] && { printf -- '%s\n\n' "$hdr"; last_hdr="$hdr"; }
+                    printf -- '### %s\n\n' "$f"
+                    cat "$MEMORY_DIR/$f"
+                    printf -- '\n\n'
+                done < <(jq -r --arg t "$t" '
+                    map(select(.topic == $t))
+                    | sort_by(.date // "0000-00-00") | reverse
+                    | .[] | "\(.date // "")|\(.file)"
+                ' "$PLAN_PATH")
+                ;;
+            *)
+                # non-log-topic (charter/pending/traps/rules/reference): flat, ### file + verbatim.
+                for i in $(seq 0 $((n-1))); do
+                    f=$(jq -r ".[$i].file"  "$PLAN_PATH")
+                    tt=$(jq -r ".[$i].topic" "$PLAN_PATH")
+                    [ "$tt" = "$t" ] || continue
+                    [ "$f" = "MEMORY.md" ] && printf -- '## Archived pre-migration index\n\n'
+                    printf -- '### %s\n\n' "$f"
+                    cat "$MEMORY_DIR/$f"
+                    printf -- '\n\n'
+                done
+                ;;
+        esac
     } > "$tmp"
     chmod 600 "$tmp"
     mv "$tmp" "$MEMORY_DIR/$t.md"

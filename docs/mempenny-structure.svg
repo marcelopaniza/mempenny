@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 540" role="img" aria-labelledby="st sd" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <title id="st">How MemPenny organizes memory</title>
+  <desc id="sd">A fixed 3-level structure: MEMORY.md index points at 8 fixed topic files (charter, pending, worklog, support, traps, rules, decisions, reference), each holding dated or named entries. Logs auto-archive by closed year. A cold agent finds anything in three file-opens.</desc>
+
+  <defs>
+    <linearGradient id="bg2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1220"/>
+      <stop offset="1" stop-color="#172033"/>
+    </linearGradient>
+  </defs>
+
+  <!-- background -->
+  <rect x="0" y="0" width="1200" height="540" rx="20" fill="url(#bg2)"/>
+
+  <!-- header -->
+  <text x="600" y="46" text-anchor="middle" font-size="27" font-weight="700" fill="#f8fafc">How MemPenny organizes memory</text>
+  <text x="600" y="74" text-anchor="middle" font-size="14.5" fill="#f59e0b">A fixed 3-level structure &#183; 8 topic files &#183; find anything in 3 file-opens</text>
+
+  <!-- Level 1: the index -->
+  <rect x="420" y="100" width="360" height="56" rx="12" fill="#1e293b" stroke="#f59e0b" stroke-width="2"/>
+  <circle cx="442" cy="128" r="5" fill="#f59e0b"/>
+  <text x="456" y="124" font-size="16" font-weight="700" fill="#fbbf24">MEMORY.md</text>
+  <text x="456" y="144" font-size="12" fill="#94a3b8">the index &#183; one pointer per topic</text>
+
+  <!-- connector bus from index to the 8 topic cards -->
+  <line x1="600" y1="156" x2="600" y2="174" stroke="#475569" stroke-width="1.6"/>
+  <line x1="174" y1="174" x2="1026" y2="174" stroke="#475569" stroke-width="1.6"/>
+  <line x1="174" y1="174" x2="174" y2="190" stroke="#475569" stroke-width="1.6"/>
+  <line x1="458" y1="174" x2="458" y2="190" stroke="#475569" stroke-width="1.6"/>
+  <line x1="742" y1="174" x2="742" y2="190" stroke="#475569" stroke-width="1.6"/>
+  <line x1="1026" y1="174" x2="1026" y2="190" stroke="#475569" stroke-width="1.6"/>
+
+  <!-- Level 2: 8 topic files (4 x 2) -->
+  <g>
+    <!-- row 1 -->
+    <rect x="39" y="190" width="270" height="92" rx="12" fill="#1e293b" stroke="#334155" stroke-width="1.3"/>
+    <text x="55" y="220" font-size="16" font-weight="700" fill="#fbbf24">charter.md</text>
+    <text x="55" y="246" font-size="13" fill="#cbd5e1">Goal + requirements for the</text>
+    <text x="55" y="264" font-size="13" fill="#cbd5e1">project &#8212; small and stable.</text>
+
+    <rect x="323" y="190" width="270" height="92" rx="12" fill="#1e293b" stroke="#334155" stroke-width="1.3"/>
+    <text x="339" y="220" font-size="16" font-weight="700" fill="#fbbf24">pending.md</text>
+    <text x="339" y="246" font-size="13" fill="#cbd5e1">In-flight work; volatile,</text>
+    <text x="339" y="264" font-size="13" fill="#cbd5e1">overwritten freely.</text>
+
+    <rect x="607" y="190" width="270" height="92" rx="12" fill="#1e293b" stroke="#334155" stroke-width="1.3"/>
+    <text x="623" y="220" font-size="16" font-weight="700" fill="#fbbf24">worklog.md</text>
+    <rect x="811" y="199" width="52" height="18" rx="9" fill="none" stroke="#f59e0b" stroke-width="1.2"/>
+    <text x="837" y="211" text-anchor="middle" font-size="10" font-weight="600" fill="#fbbf24">shards</text>
+    <text x="623" y="246" font-size="13" fill="#cbd5e1">Datestamped log of</text>
+    <text x="623" y="264" font-size="13" fill="#cbd5e1">shipped changes.</text>
+
+    <rect x="891" y="190" width="270" height="92" rx="12" fill="#1e293b" stroke="#334155" stroke-width="1.3"/>
+    <text x="907" y="220" font-size="16" font-weight="700" fill="#fbbf24">support.md</text>
+    <rect x="1095" y="199" width="52" height="18" rx="9" fill="none" stroke="#f59e0b" stroke-width="1.2"/>
+    <text x="1121" y="211" text-anchor="middle" font-size="10" font-weight="600" fill="#fbbf24">shards</text>
+    <text x="907" y="246" font-size="13" fill="#cbd5e1">Helping operators run it;</text>
+    <text x="907" y="264" font-size="13" fill="#cbd5e1">ages out by calendar.</text>
+
+    <!-- row 2 -->
+    <rect x="39" y="296" width="270" height="92" rx="12" fill="#1e293b" stroke="#334155" stroke-width="1.3"/>
+    <text x="55" y="326" font-size="16" font-weight="700" fill="#fbbf24">traps.md</text>
+    <text x="55" y="352" font-size="13" fill="#cbd5e1">Hazards: the condition +</text>
+    <text x="55" y="370" font-size="13" fill="#cbd5e1">how to avoid them.</text>
+
+    <rect x="323" y="296" width="270" height="92" rx="12" fill="#1e293b" stroke="#334155" stroke-width="1.3"/>
+    <text x="339" y="326" font-size="16" font-weight="700" fill="#fbbf24">rules.md</text>
+    <text x="339" y="352" font-size="13" fill="#cbd5e1">Standing directives, rituals,</text>
+    <text x="339" y="370" font-size="13" fill="#cbd5e1">and escalation paths.</text>
+
+    <rect x="607" y="296" width="270" height="92" rx="12" fill="#1e293b" stroke="#334155" stroke-width="1.3"/>
+    <text x="623" y="326" font-size="16" font-weight="700" fill="#fbbf24">decisions.md</text>
+    <rect x="811" y="305" width="52" height="18" rx="9" fill="none" stroke="#f59e0b" stroke-width="1.2"/>
+    <text x="837" y="317" text-anchor="middle" font-size="10" font-weight="600" fill="#fbbf24">shards</text>
+    <text x="623" y="352" font-size="13" fill="#cbd5e1">ADR-style: why X over Y,</text>
+    <text x="623" y="370" font-size="13" fill="#cbd5e1">alternatives rejected.</text>
+
+    <rect x="891" y="296" width="270" height="92" rx="12" fill="#1e293b" stroke="#334155" stroke-width="1.3"/>
+    <text x="907" y="326" font-size="16" font-weight="700" fill="#fbbf24">reference.md</text>
+    <text x="907" y="352" font-size="13" fill="#cbd5e1">Who / what / where: people,</text>
+    <text x="907" y="370" font-size="13" fill="#cbd5e1">systems, URLs, commands.</text>
+  </g>
+
+  <!-- Level 3: footer panels -->
+  <rect x="39" y="408" width="540" height="104" rx="12" fill="#1e293b" stroke="#334155" stroke-width="1.3"/>
+  <text x="56" y="434" font-size="14" font-weight="700" fill="#fbbf24">Inside a topic file &#8212; rules.md</text>
+  <text x="56" y="460" font-size="12.5" fill="#cbd5e1">&#9656; ### Always back up first</text>
+  <text x="56" y="480" font-size="12.5" fill="#cbd5e1">&#9656; ### PROD writes go through Felix</text>
+  <text x="56" y="500" font-size="12.5" fill="#cbd5e1">&#9656; ### Never echo secrets into chat</text>
+
+  <rect x="607" y="408" width="554" height="104" rx="12" fill="#1e293b" stroke="#f59e0b" stroke-width="1.6"/>
+  <text x="624" y="434" font-size="14" font-weight="700" fill="#fbbf24">Why it scales</text>
+  <text x="624" y="460" font-size="12.5" fill="#cbd5e1">&#9656; 3 levels deep: index &#8594; topic &#8594; entry</text>
+  <text x="624" y="480" font-size="12.5" fill="#cbd5e1">&#9656; Logs auto-archive by closed year (locked shards)</text>
+  <text x="624" y="500" font-size="12.5" fill="#cbd5e1">&#9656; A cold agent finds anything in 3 file-opens</text>
+</svg>
