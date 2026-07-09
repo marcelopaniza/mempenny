@@ -1,6 +1,8 @@
 # MemPenny
 
-**Memory hygiene for any AI coding agent. Turn it on, keep it lean, schedule the upkeep, reverse anything.**
+<p align="center"><img src="docs/mempenny-banner.svg" alt="MemPenny — memory hygiene for AI coding agents" width="880"></p>
+
+**Memory hygiene for any AI coding agent — not a one-off clean. MemPenny organizes your memory, cleans out the stale, and keeps it that way.**
 
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)](CHANGELOG.md)
@@ -8,7 +10,17 @@
 [![Backups](https://img.shields.io/badge/backups-always%20first-yellow.svg)](SECURITY.md)
 [![Locales](https://img.shields.io/badge/locales-3%20languages-blue.svg)](locales/README.md)
 
-Your agent's memory grows. Old notes pile up. The signal gets buried. MemPenny tidies it — and the next session starts sharper.
+Your agent's memory grows. Old notes pile up and the signal gets buried. MemPenny doesn't just tidy once — it does three things:
+
+1. **Organize** — every note lands in a small, fixed set of topic files. A 3-level structure (one-line index → topic files → entries inside) keeps things from sprawling into hundreds of one-off notes; a cold agent finds anything in three file-opens.
+2. **Clean** — drop what's stale, archive the historical, distill the bloated to a line or two, kill duplicates, and flag files that contradict each other.
+3. **Keep it cleaned** — set a schedule (daily / weekly / once) and the next session opens on a tidy directory. Backup-first, fully reversible.
+
+## How memory is organized
+
+Every tidy memory settles into the same fixed shape — so a cold agent always knows where to look:
+
+<p align="center"><img src="docs/mempenny-structure.svg" alt="How MemPenny organizes memory: an index pointing at 8 fixed topic files, each holding entries; logs auto-archive by year" width="880"></p>
 
 It runs on **Claude Code** and **opencode**, and any agent that reads an `AGENTS.md` (Codex, Gemini, CodeWhale, Swival, Cursor, Windsurf, and friends). Same memory directory, same commands, same safety net. If you switch hosts mid-project, the tidied memory comes with you.
 
@@ -26,18 +38,6 @@ A real second-pass run on a real memory directory. Full case study: [docs/real-w
 
 - **Clean now** — one command. You see the proposal, you say yes, done. A minute or two.
 - **Set a nap** — pick a schedule (daily / weekly / once). MemPenny tidies on your next session. Backup-first, no prompts, fully reversible.
-
-## What it does
-
-- Drops what's clearly stale.
-- Files the historical stuff away (still searchable, just out of the way).
-- Trims bloated notes to a line or two.
-- Spots duplicates and keeps the best one.
-- Flags files that contradict each other so you can sort them out.
-- Keeps what's left in a small, fixed set of topic files — nothing sprawls into hundreds of one-off notes.
-- Leaves alone anything you mark off-limits.
-
-Don't like a change? One command puts everything back. Backup-first, always.
 
 ## Install
 
