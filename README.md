@@ -5,7 +5,7 @@
 **Memory hygiene for any AI coding agent — not a one-off clean. MemPenny organizes your memory, cleans out the stale, and keeps it that way.**
 
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.5.0-blue.svg)](CHANGELOG.md)
 [![Platform](https://img.shields.io/badge/platform-Claude%20Code%20%C2%B7%20opencode-orange.svg)](#install)
 [![Backups](https://img.shields.io/badge/backups-always%20first-yellow.svg)](SECURITY.md)
 [![Locales](https://img.shields.io/badge/locales-3%20languages-blue.svg)](locales/README.md)
@@ -22,7 +22,17 @@ Every tidy memory settles into the same fixed shape — so a cold agent always k
 
 <p align="center"><img src="docs/mempenny-structure.svg" alt="How MemPenny organizes memory: an index pointing at 8 fixed topic files, each holding entries; logs auto-archive by year" width="880"></p>
 
-It runs on **Claude Code** and **opencode**, and any agent that reads an `AGENTS.md` (Codex, Gemini, CodeWhale, Swival, Cursor, Windsurf, and friends). Same memory directory, same commands, same safety net. If you switch hosts mid-project, the tidied memory comes with you.
+## One memory, every AI
+
+Use more than one AI? Most of us do — one for coding, another for a second opinion, next month's favorite after that. Normally each keeps its own notes, so every switch starts from zero: new assistant, blank memory, explain the whole project again.
+
+MemPenny keeps your memory in plain, organized markdown that any AI can read — one memory, not one per vendor:
+
+- **Switch models freely.** The next model opens the same files and picks up where the last one left off. Nothing to re-explain.
+- **Second opinions arrive briefed.** Ask another AI to help mid-project — point it at your memory folder and it knows the goal, the decisions, the gotchas.
+- **Never locked in.** Your memory is markdown on your disk, not a vendor database. Change tools next month; it comes along.
+
+On **Claude Code** and **opencode** this is automatic — same memory directory, same commands, zero setup. Every other supported agent (Codex, Gemini, CodeWhale, Swival, Cursor, Windsurf, and friends) gets the rules-only tier: [`AGENTS.md`](AGENTS.md) carries the same rules, the same safety net, and the memory folder's location, so a second AI can be briefed in one step; hosts that load a copied rules file instead just get pointed at the folder (bullet two).
 
 ## Before / after
 
@@ -53,7 +63,7 @@ A real second-pass run on a real memory directory. Full case study: [docs/real-w
 
 ```bash
 git clone https://github.com/marcelopaniza/mempenny.git
-cd mempenny && git checkout v1.3.0
+cd mempenny && git checkout v1.5.0
 ./install/opencode.sh
 ```
 

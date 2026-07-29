@@ -25,7 +25,7 @@ MemPenny today:
 - `SessionStart` hook at `hooks/nap-check.sh` (91 lines bash).
 - Skill at `skills/memory-hygiene/SKILL.md`.
 - Config at `~/.claude/mempenny.config.json` (schema v2, per-memory-dir).
-- Memory dir auto-resolved from `CLAUDE_PROJECT_DIR` via the slug rule `sed 's|/|-|g; s|^-||'` → `~/.claude/projects/<slug>/memory/`.
+- Memory dir auto-resolved from `CLAUDE_PROJECT_DIR` via the slug rule `sed 's|/|-|g'` (leading `-` kept) → `~/.claude/projects/<slug>/memory/`.
 - Auto-memory enable offer reads `~/.claude/settings.json` → `autoMemoryEnabled`.
 - Locales at `locales/{en,es,pt-BR}/strings.json` (portable, no work needed).
 
@@ -129,7 +129,7 @@ import { readFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
 
-const slug = (dir: string) => dir.replace(/\//g, "-").replace(/^-/, "")
+const slug = (dir: string) => dir.replace(/\//g, "-")  // leading "-" is kept
 const memoryDir = (projectDir: string) =>
   join(homedir(), ".claude", "projects", slug(projectDir), "memory")
 
@@ -206,7 +206,7 @@ With this shim, the existing `commands/*.md` files (copied to `.opencode/command
 
 **Gap:** `commands/clean.md` line 43 says "auto-detect `~/.claude/projects/<project-id>/memory/` from the current project's working directory mapping." This assumes Claude Code populated that dir. Opencode doesn't populate it.
 
-**Fix:** **Keep the slug rule as-is** — `sed 's|/|-|g; s|^-||'`. From opencode's cwd (e.g. `/home/you/projects/myapp`), the rule produces `-home-you-projects-myapp`, and `~/.claude/projects/-home-you-projects-myapp/memory/` exists because Claude Code sessions in the same project put it there. **This is the single biggest unblock:** opencode becomes a read/clean/restore client on Claude-authored memory, with zero setup.
+**Fix:** **Keep the slug rule as-is** — `sed 's|/|-|g'` (the leading `-` is kept; stripping it resolves a nonexistent directory). From opencode's cwd (e.g. `/home/you/projects/myapp`), the rule produces `-home-you-projects-myapp`, and `~/.claude/projects/-home-you-projects-myapp/memory/` exists because Claude Code sessions in the same project put it there. **This is the single biggest unblock:** opencode becomes a read/clean/restore client on Claude-authored memory, with zero setup.
 
 If the auto-resolved path doesn't exist, fall back to `--dir` prompt as today. No new logic, just confirmation that the existing rule keeps working cross-host.
 

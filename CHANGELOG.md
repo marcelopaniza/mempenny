@@ -2,6 +2,28 @@
 
 All notable changes to MemPenny are documented here. This project follows [semantic versioning](https://semver.org/).
 
+## [1.5.0] — 2026-07-29
+
+Headline: the README now tells the multi-AI story in plain language — one organized memory, shared by every AI you use — and a resolver fix makes the automatic part true: a slug bug had been silently keeping scheduled naps from firing and opencode from finding the shared memory directory. Under the hood, the adaptive sharding engine lands as hardened, standalone groundwork; wiring it into the commands is the next release.
+
+### One memory, every AI — README + AGENTS.md
+
+New plain-language README section for people who use more than one AI: MemPenny keeps memory in organized markdown any AI can read, so switching models — or pulling in a second AI mid-project — doesn't start from a blank slate. Automatic on Claude Code and opencode (shared memory directory, zero setup); every other supported host runs the rules-only tier, and `AGENTS.md` now states where the memory directory lives so a second AI can be pointed at it in one step. Also new in the README since v1.4.0: a hand-authored hero banner and memory-structure diagram (plain SVGs — they render identically on GitHub and everywhere else), and a top section that leads with the organize → clean → keep-it-cleaned lifecycle. The version badge and the opencode install tag now track the released version.
+
+### Fixed — memory-directory resolution (scheduled nap + opencode auto-resolve)
+
+Both resolvers built the project slug by stripping its leading dash (`/home/you/app` → `home-you-app`), but real layouts keep it (`~/.claude/projects/-home-you-app/memory/`). The SessionStart nap check therefore probed a nonexistent directory and — by its own fail-silent design — skipped every time: **scheduled naps never fired.** opencode's automatic shared-memory resolution missed the directory the same way. `hooks/nap-check.sh` and `.opencode/plugins/_paths.ts` now keep the dash and fall back to the dash-stripped form for older layouts; every downstream guard (symlink refusal, realpath, path regex) applies unchanged to whichever form exists. If you scheduled a nap that never seemed to fire, it starts firing on schedule now. Found by this release's own pre-deploy review while verifying the new AGENTS.md section against a real on-disk layout.
+
+### Adaptive shard-roll engine — `hooks/shard-roll.sh` (new, standalone groundwork)
+
+A deterministic script for bounding log-topic files (worklog / support / decisions), extending v1.4.0's "place with the model, move with a script" principle into the sharding path. It rolls closed periods into frozen `topic-YYYY.md` / `topic-YYYY-MM.md` / `topic-YYYY-MM-DD.md` shards, drilling year → month → day until what remains fits the requested ceiling; shards are frozen once written — the script refuses to touch one that already exists — and if today's entries (plus the file's fixed overhead) still exceed the ceiling it rolls nothing and says so. Its parser only treats a full-line `## YYYY-MM-DD` heading as a section boundary, so a content heading like `## What happened` stays inside its day. Guards: path validation, symlink refusal on input and shard paths, validated inputs; hardened in a dedicated code-review + pentest pass.
+
+**Not yet wired:** in v1.5.0 nothing invokes this script — `/mempenny-memory-shard-roll` still closes finished years with its existing month-heading logic, which also doesn't yet read the day-heading layout the new mover writes. Connecting the engine to the commands, and unifying the day/month layout across mover, command, and design doc, is the next release.
+
+### Date-aware mover — `hooks/migrate-move.sh`
+
+Migration now lands log-topic entries grouped under `## YYYY-MM-DD` day headings (newest first, with an `## Undated` section for entries without a date) — the layout the shard-roll engine is built for. Content is still `cat`-moved verbatim: no model in the content path.
+
 ## [1.4.0] — 2026-07-07
 
 Rewrites the topic-taxonomy migration so the model is **never in the content-reproduction path**, eliminating the failure class that rolled back two real runs on a dense ~280KB directory (124 then 91 summarized-away lines, both caught cleanly by the conservation check, nothing lost). The migration is now deterministic on the content side, resumable, and ~3× cheaper.

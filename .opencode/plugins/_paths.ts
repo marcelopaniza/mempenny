@@ -4,7 +4,7 @@
 // into TypeScript so the nap plugin never trusts an unvalidated path:
 //   - C1:   absolute-path regex  ^/[A-Za-z0-9/_.\ -]{1,4096}$
 //   - F-M2: never read/write a symlink at a sensitive path
-//   - slug: Claude Code's project-id encoding (sed 's|/|-|g; s|^-||')
+//   - slug: Claude Code's project-id encoding (replace / with -; leading - kept)
 //
 // This module is imported by mempenny-env.ts and mempenny-nap.ts. It holds no
 // secrets and performs no mutation — pure path resolution + validation.
@@ -19,9 +19,10 @@ export const C1 = /^\/[A-Za-z0-9/_.\ -]{1,4096}$/
 // H1 — memory filename regex, used when a path's basename is load-bearing.
 export const FILENAME_H1 = /^[A-Za-z0-9][A-Za-z0-9_.\-]*\.md$/
 
-// Claude Code's project-id encoding: replace "/" with "-", strip leading "-".
+// Claude Code's project-id encoding: replace "/" with "-". The leading "-" is
+// kept on disk: a project at /home/you/app lives under -home-you-app.
 export function slug(dir: string): string {
-  return dir.replace(/\//g, "-").replace(/^-/, "")
+  return dir.replace(/\//g, "-")
 }
 
 // Resolve the MemPenny root (the directory holding `commands/`, `locales/`,
@@ -66,11 +67,15 @@ export function isSymlink(p: string): boolean {
 }
 
 // Memory dir for a project cwd, using the same slug rule as Claude Code. Returns
-// null when the resolved path fails C1 — the caller must not act on null.
+// null when the resolved path fails C1 — the caller must not act on null. Falls
+// back to the legacy dash-stripped layout when only that one exists on disk.
 export function memoryDir(projectDir: string): string | null {
   if (!projectDir) return null
   const candidate = join(homedir(), ".claude", "projects", slug(projectDir), "memory")
-  return C1.test(candidate) ? candidate : null
+  if (!C1.test(candidate)) return null
+  if (existsSync(candidate)) return candidate
+  const legacy = join(homedir(), ".claude", "projects", slug(projectDir).replace(/^-/, ""), "memory")
+  return C1.test(legacy) && existsSync(legacy) ? legacy : candidate
 }
 
 // Host-aware config path. Shares ~/.claude/mempenny.config.json when that dir

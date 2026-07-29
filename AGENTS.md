@@ -13,6 +13,16 @@ loads it. MemPenny tidies the directory: drops the stale, archives the
 historical, distills the verbose to a line or two, and keeps what's left in a
 small fixed set of topic files. Backup-first, always reversible.
 
+## Where the memory lives
+
+The default memory directory is Claude Code's auto-memory layout:
+`~/.claude/projects/<project-slug>/memory/`, where `<project-slug>` is the
+project's absolute path with every `/` replaced by `-` (a project at
+`/home/you/app` keeps its memory in `~/.claude/projects/-home-you-app/memory/`).
+Claude Code and opencode resolve this automatically. On any other host, tell
+the agent where the memory directory is — this path, or wherever yours lives —
+before asking it to read or tidy anything.
+
 ## The strategy hierarchy
 
 Cheapest action first. Always pick the cheapest one that applies.
