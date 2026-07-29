@@ -9,9 +9,11 @@ set -uo pipefail
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-}"
 [ -n "$PROJECT_DIR" ] || exit 0
 
-# Project ID encoding: Claude Code's convention (replace / with -, strip leading -)
-PROJECT_ID=$(echo "$PROJECT_DIR" | sed 's|/|-|g; s|^-||')
+# Project ID encoding: Claude Code's convention (replace / with -; the leading - is kept)
+PROJECT_ID=$(echo "$PROJECT_DIR" | sed 's|/|-|g')
 MEMORY_DIR="$HOME/.claude/projects/$PROJECT_ID/memory"
+# Older layouts stripped the leading dash — fall back before giving up.
+[ -d "$MEMORY_DIR" ] || MEMORY_DIR="$HOME/.claude/projects/${PROJECT_ID#-}/memory"
 
 [ -d "$MEMORY_DIR" ] || exit 0
 [ ! -L "$MEMORY_DIR" ] || exit 0
