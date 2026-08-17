@@ -9,15 +9,20 @@
 # run-smoke.sh's own footer, this one CAN be asserted automatically, here,
 # with no model and no Claude Code host required.
 #
-# Covers: conservation (every original line survives in shard+kept, checked
-# independently of the script's own self-reported TOTAL_MISSING), the live
-# file ending up at-or-under ceiling (or provably as-reduced-as-the-content-
-# allows at the documented floor), a real backup existing and matching,
-# idempotency (a second run is a no-op, byte-for-byte), the fence-safety
-# nudge (a fenced block is proven to land whole in one output, never torn),
-# both DATE-strategy granularities (## YYYY-MM and ## YYYY-MM-DD), the PROSE
-# strategy's frontmatter handling, and every fail-closed path (locks, an
-# ineligible topic name, a symlinked target, a same-day shard collision).
+# Covers: conservation (every original line survives in shard/page+kept,
+# checked independently of the script's own self-reported TOTAL_MISSING), the
+# live file ending up at-or-under ceiling (or provably as-reduced-as-the-
+# content-allows at the documented floor), a real backup existing and
+# matching, idempotency (a second run is a no-op, byte-for-byte), the
+# fence-safety nudge (a fenced block is proven to land whole in one output,
+# never torn), both DATE-strategy granularities (## YYYY-MM and
+# ## YYYY-MM-DD), SUBJECT-INDEX (the primary strategy for a real, ##-
+# structured pending.md -- realistic fixture, nested ### handling, unlocked
+# detail pages, incremental re-split after new subjects are prepended, the
+# empty-slug fallback, and the deterministic collision suffix), PROSE-PEEL's
+# direction-derivation (both directions, plus its own fail-closed paths), and
+# every other fail-closed path (locks, an ineligible topic name, a symlinked
+# target, a same-day shard collision).
 #
 # Usage: ./tests/run-autosplit.sh
 
@@ -395,6 +400,188 @@ echo "$OUT" | sed 's/^/    /'
 { [ "$RC" -ne 0 ] && echo "$OUT" | grep -qi "collision"; } && ok "second same-day episode fails closed (documented limitation, not silent overwrite/data loss)" || bad "second same-day episode did not fail closed as designed"
 AFTER_SHARD=$(sha256sum "$D"/pending-archive-*.md)
 [ "$SNAPSHOT_SHARD" = "$AFTER_SHARD" ] && ok "first archive shard untouched by the failed second attempt" || bad "first archive shard was modified/corrupted"
+echo
+
+# =============================================================================
+# SUBJECT-INDEX strategy -- the primary strategy for a real, ##-structured
+# pending.md (verified structure: frontmatter, a preamble, dozens of
+# top-level `## ` subject blocks, newest at the top, occasional nested `### `
+# detail, occasional fenced code). "Over ceiling -> the main file becomes the
+# INDEX, subjects become PAGES" -- see docs/memory-taxonomy-design.md SS4b.
+echo "=== case: SUBJECT-INDEX, realistic pending.md shape (frontmatter + preamble + ## blocks, one fenced, newest-first) ==="
+D="$WORKROOT/subject_index"; mkdir -p "$D"
+{
+  printf -- '---\ntype: pending\n---\n\n'
+  printf -- 'Short preamble line describing the project context.\n\n'
+  printf -- '## \360\237\237\242 2026-08-16 \342\200\224 SHIP THE FEATURE\n\nWork on the feature is progressing well.\n\n### sub detail heading\n\nNested detail that must stay inside its ## parent, never its own split unit.\n\n'
+  printf -- '## \360\237\237\247 2026-08-14 \342\200\224 SUPERSEDED PLAN\n\nThis plan was superseded by a later decision -- exactly the kind of RESOLVED subject that pending.md'"'"'s old blanket curate-exemption used to shield from ever being triaged.\n\n'
+  printf -- '## \360\237\237\242 2026-08-10 \342\200\224 SECRET REGISTRY BUILT + VERIFIED (docs/SECRET-REGISTRY.md)\n\nRotation completed and verified.\n\n```bash\necho verifying secret rotation\n```\n\n'
+  for n in $(seq 1 30); do
+    printf -- '## \360\237\237\242 2026-07-%02d \342\200\224 filler subject number %d with descriptive words\n\n' "$((n % 28 + 1))" "$n"
+    # Each block's BODY (not the bullet count) is what needs to push the
+    # PRE-split file past the real 25600 B ceiling, while each block's
+    # HEADING (the only thing that becomes an index bullet) stays short --
+    # so the POST-split index still comfortably fits the same real ceiling,
+    # both checked against the one real constant, no separate test-only
+    # ceiling to keep in sync with the (b) assertion below.
+    repeat_line 6 "Filler body line __N__ for subject $n, padding this block's body well past what a single short bullet will cost once collapsed into the index."
+    printf '\n'
+  done
+} > "$D/pending.md"
+ORIG="$WORKROOT/subject_index.orig.md"; cp "$D/pending.md" "$ORIG"
+BACKUP="$WORKROOT/subject_index.backup"; cp -a "$D" "$BACKUP"
+
+OUT=$(run_split "$D" "pending.md" "pending" 25600 200); RC=$?
+echo "$OUT" | sed 's/^/    /'
+[ "$RC" -eq 0 ] && echo "$OUT" | grep -q "^SCRIPT_OK$" && ok "exit 0 + SCRIPT_OK" || bad "expected SCRIPT_OK/exit0, got rc=$RC"
+echo "$OUT" | grep -q "^GRANULARITY=subject-index$" && ok "correctly chose SUBJECT-INDEX over prose-peel (## structure detected)" || bad "did not choose subject-index: $OUT"
+echo "$OUT" | grep -q "^SUBJECTS_SPLIT=33$" && ok "all 33 top-level ## blocks became pages (3 named + 30 filler)" || bad "unexpected SUBJECTS_SPLIT count: $OUT"
+echo "$OUT" | grep -q "^TOTAL_MISSING=0$" && ok "script's own conservation check: 0 missing" || bad "script reported missing lines"
+
+DETAIL_FILES=$(find "$D" -maxdepth 1 -name 'pending-[0-9]*.md' -type f | sort)
+DETAIL_COUNT=$(printf '%s\n' "$DETAIL_FILES" | grep -c . || true)
+[ "$DETAIL_COUNT" -eq 33 ] && ok "33 detail files on disk" || bad "expected 33 detail files, found $DETAIL_COUNT"
+
+# (b) live file = frontmatter + preamble + index ONLY, and under ceiling.
+AFTER_BYTES=$(wc -c <"$D/pending.md" | tr -d ' '); AFTER_LINES=$(wc -l <"$D/pending.md" | tr -d ' ')
+{ [ "$AFTER_BYTES" -le 25600 ] && [ "$AFTER_LINES" -le 200 ]; } && ok "(b) live index file under ceiling ($AFTER_BYTES B / $AFTER_LINES lines)" || bad "(b) live file still over ceiling ($AFTER_BYTES B / $AFTER_LINES lines)"
+grep -q '^## ' "$D/pending.md" && bad "a raw ## heading survived in the live file -- it should be 100% index now" || ok "live file has zero ## headings left -- fully converted to an index"
+BULLET_COUNT=$(grep -c '^- \[' "$D/pending.md" || true)
+[ "$BULLET_COUNT" -eq 33 ] && ok "live file is a clean, scannable map: exactly one bullet per subject (33)" || bad "expected 33 index bullets, found $BULLET_COUNT"
+grep -q 'Short preamble line' "$D/pending.md" && ok "preamble survived verbatim in the live/index file" || bad "preamble missing from the live file"
+
+# Each block verbatim in its own correctly-named detail file.
+grep -rl 'SHIP THE FEATURE' "$D"/pending-*.md >/dev/null 2>&1 && ok "'SHIP THE FEATURE' block landed in its own detail file" || bad "'SHIP THE FEATURE' block missing from any detail file"
+SHIP_FILE=$(grep -l 'SHIP THE FEATURE' "$D"/pending-*.md)
+grep -q 'sub detail heading' "$SHIP_FILE" && ok "nested ### stayed inside its ## parent's detail file" || bad "nested ### separated from its parent"
+SECRET_FILE=$(grep -l 'SECRET REGISTRY BUILT' "$D"/pending-*.md)
+FC=$(grep -c '^```' "$SECRET_FILE" || true)
+[ $((FC % 2)) -eq 0 ] && [ "$FC" -eq 2 ] && ok "fenced block landed intact (balanced) in its own detail file" || bad "fenced block unbalanced/missing in its detail file ($FC)"
+grep -q '^name: ' "$SECRET_FILE" && grep -q '^description: "' "$SECRET_FILE" && grep -qE '^\s*type: pending$' "$SECRET_FILE" && ok "detail file frontmatter shape correct (name/description/metadata.type)" || bad "detail file frontmatter shape wrong"
+grep -q 'mempenny-lock' "$SECRET_FILE" && bad "detail file is locked -- SUBJECT-INDEX pages must stay unlocked (triage-ability is the point)" || ok "detail file correctly left UNLOCKED"
+
+# (a) conservation, independently re-derived.
+# shellcheck disable=SC2086
+assert_conservation "$ORIG" "$D/pending.md" $DETAIL_FILES && ok "(a) independent conservation check: every original line found in index+pages" || bad "(a) conservation check FAILED"
+
+# (c) backup exists.
+{ [ -d "$BACKUP" ] && diff -q "$BACKUP/pending.md" "$ORIG" >/dev/null 2>&1; } && ok "(c) backup exists and matches the pre-split original" || bad "(c) backup missing or mismatched"
+
+# (d) idempotent re-run.
+SUM_1=$(find "$D" -maxdepth 1 -name '*.md' | sort | xargs sha256sum | sha256sum)
+OUT2=$(run_split "$D" "pending.md" "pending" 25600 200)
+echo "$OUT2" | grep -q "nothing to split" && ok "(d) idempotent: second run is a clean no-op (all-bullets index is small by construction)" || bad "(d) second run was not a no-op: $OUT2"
+SUM_2=$(find "$D" -maxdepth 1 -name '*.md' | sort | xargs sha256sum | sha256sum)
+[ "$SUM_1" = "$SUM_2" ] && ok "(d) re-run touched nothing on disk" || bad "(d) re-run modified files"
+echo
+
+# =============================================================================
+echo "=== case: SUBJECT-INDEX, prepend NEW blocks then re-split -- only the new ones split, existing pages untouched ==="
+# Reuses the already-split $D from above. Force a real split with a small
+# ceiling (the real 25600 ceiling would never trip on just 1-2 new bullets'
+# worth of growth) so the "only new blocks split" code path is exercised.
+PRE_EXISTING_DETAIL=$(find "$D" -maxdepth 1 -name 'pending-[0-9]*.md' -type f | sort)
+PRE_EXISTING_SUM=$(printf '%s\n' "$PRE_EXISTING_DETAIL" | xargs sha256sum)
+PRE_EXISTING_COUNT=$(printf '%s\n' "$PRE_EXISTING_DETAIL" | grep -c . || true)
+
+NEWBLOCK=$(mktemp)
+printf -- '## \360\237\237\242 2026-08-17 \342\200\224 BRAND NEW SUBJECT A\n\nFresh content A.\n\n## \360\237\237\242 2026-08-17 \342\200\224 BRAND NEW SUBJECT B\n\nFresh content B.\n\n' > "$NEWBLOCK"
+awk -v newfile="$NEWBLOCK" '
+  /^- \[/ && !inserted { while ((getline line < newfile) > 0) print line; inserted=1 }
+  { print }
+' "$D/pending.md" > "$D/pending.md.tmp" && mv "$D/pending.md.tmp" "$D/pending.md"
+rm -f "$NEWBLOCK"
+
+OUT=$(run_split "$D" "pending.md" "pending" 500 200); RC=$?
+echo "$OUT" | sed 's/^/    /'
+[ "$RC" -eq 0 ] && echo "$OUT" | grep -q "^SCRIPT_OK$" && ok "re-split succeeds" || bad "re-split failed rc=$RC"
+echo "$OUT" | grep -q "^SUBJECTS_SPLIT=2$" && ok "only the 2 NEW blocks were split (not all 35)" || bad "wrong subject count on re-split: $OUT"
+
+AFTER_DETAIL_COUNT=$(find "$D" -maxdepth 1 -name 'pending-[0-9]*.md' -type f | wc -l | tr -d ' ')
+[ "$AFTER_DETAIL_COUNT" -eq "$((PRE_EXISTING_COUNT + 2))" ] && ok "detail file count grew by exactly 2 ($PRE_EXISTING_COUNT -> $AFTER_DETAIL_COUNT)" || bad "detail file count wrong: $PRE_EXISTING_COUNT -> $AFTER_DETAIL_COUNT"
+AFTER_EXISTING_SUM=$(printf '%s\n' "$PRE_EXISTING_DETAIL" | xargs sha256sum)
+[ "$PRE_EXISTING_SUM" = "$AFTER_EXISTING_SUM" ] && ok "all pre-existing detail pages byte-identical, untouched by the re-split" || bad "a pre-existing detail page was modified by the re-split"
+grep -q 'BRAND NEW SUBJECT A' "$D"/pending-3*.md 2>/dev/null && ok "new subject numbered continuing from the existing max (30s), no collision with 01-33" || bad "new subject numbering collided with or reused an existing NN"
+BULLET_COUNT_2=$(grep -c '^- \[' "$D/pending.md" || true)
+[ "$BULLET_COUNT_2" -eq 35 ] && ok "live index now has 35 bullets: 2 new (first) + 33 pre-existing (unchanged, in place)" || bad "expected 35 bullets after re-split, found $BULLET_COUNT_2"
+FIRST_BULLET=$(sed -n '/^- \[/p' "$D/pending.md" | head -1)
+printf '%s' "$FIRST_BULLET" | grep -q 'BRAND NEW SUBJECT A' && ok "new bullets correctly inserted first (newest-first ordering preserved)" || bad "new bullets not in the expected newest-first position"
+echo
+
+# =============================================================================
+echo "=== case: SUBJECT-INDEX, stripped-to-empty slug falls back to NN alone ==="
+D="$WORKROOT/subject_empty_slug"; mkdir -p "$D"
+{
+  printf -- '---\ntype: pending\n---\n\n'
+  printf -- '## \360\237\237\242 2026-08-16 \342\200\224 A REAL SUBJECT WITH WORDS\n\nBody one.\n\n'
+  printf -- '## \360\237\216\211\360\237\216\212 2026-08-05\n\nA heading that is only emoji plus a bare date -- must slugify to empty and fall back to the ordinal alone, never an invalid or empty filename.\n\n'
+} > "$D/pending.md"
+ORIG="$WORKROOT/subject_empty_slug.orig.md"; cp "$D/pending.md" "$ORIG"
+OUT=$(run_split "$D" "pending.md" "pending" 200 200); RC=$?
+echo "$OUT" | sed 's/^/    /'
+[ "$RC" -eq 0 ] && echo "$OUT" | grep -q "^SCRIPT_OK$" && ok "split succeeds on the empty-slug fixture" || bad "split failed rc=$RC"
+[ -f "$D/pending-02.md" ] && ok "empty-slug subject correctly named just '<topic>-NN.md' (pending-02.md), no dangling hyphen or empty component" || bad "empty-slug fallback filename missing/wrong -- expected pending-02.md"
+[[ "$(basename "$D/pending-02.md")" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*\.md$ ]] && ok "fallback filename passes the H1 filename regex" || bad "fallback filename fails H1"
+DETAIL2=$(find "$D" -maxdepth 1 -name 'pending-0*.md')
+# shellcheck disable=SC2086
+assert_conservation "$ORIG" "$D/pending.md" $DETAIL2 && ok "conservation holds for the empty-slug case" || bad "conservation FAILED for empty-slug case"
+echo
+
+# =============================================================================
+echo "=== case: SUBJECT-INDEX, two subjects that slugify to IDENTICAL text -- disambiguated by NN, neither lost ==="
+# Design note (not in the original spec, worked out while testing it): a
+# literal filename COLLISION, as in "the freshly computed candidate for a NEW
+# block matches a file already on disk", is structurally unreachable through
+# this script's normal entrypoint -- NN always continues from
+# (highest NN already on disk) + 1, so a fresh candidate can never equal an
+# already-used one; any pre-existing file shaped like a real detail page is,
+# by the same glob that generates real candidates, always counted in that
+# scan and therefore always skipped past. Confirmed directly: pre-seeding the
+# exact name a fresh run would "naturally" pick doesn't collide at all --
+# EXISTING_MAX_NN simply picks up the seed file and the real block gets the
+# next number instead (proven interactively while diagnosing this test; the
+# -2/-3 fallback in hooks/auto-split.sh remains as defense-in-depth for a
+# scenario this codebase already disclaims -- concurrent/racing invocations
+# -- not because it's reachable from any single run's own disk state).
+# What IS both realistic and directly testable: two DIFFERENT subjects whose
+# headings slugify to the SAME text (a very plausible real occurrence --
+# near-duplicate or re-titled subjects). NN uniqueness must disambiguate them
+# into two distinct files with neither one's content lost.
+D="$WORKROOT/subject_dup_slug"; mkdir -p "$D"
+{
+  printf -- '---\ntype: pending\n---\n\n'
+  printf -- '## \360\237\237\242 2026-08-16 \342\200\224 Ship The Feature!!!\n\nBody one -- the newer of the two near-duplicate headings.\n\n'
+  printf -- '## \360\237\237\242 2026-08-14 --- SHIP the feature???\n\nBody two -- an older, differently-punctuated subject that slugifies to the same text as the one above.\n\n'
+} > "$D/pending.md"
+ORIG="$WORKROOT/subject_dup_slug.orig.md"; cp "$D/pending.md" "$ORIG"
+
+OUT=$(run_split "$D" "pending.md" "pending" 150 150); RC=$?
+echo "$OUT" | sed 's/^/    /'
+[ "$RC" -eq 0 ] && echo "$OUT" | grep -q "^SCRIPT_OK$" && ok "split succeeds with two identically-sluggable headings" || bad "split failed rc=$RC"
+echo "$OUT" | grep -q "^SUBJECTS_SPLIT=2$" && ok "both near-duplicate subjects were split, neither dropped or merged" || bad "expected 2 subjects split: $OUT"
+DUP_FILES=$(find "$D" -maxdepth 1 -name 'pending-0*-ship-the-feature*.md' | sort)
+DUP_COUNT=$(printf '%s\n' "$DUP_FILES" | grep -c . || true)
+[ "$DUP_COUNT" -eq 2 ] && ok "two distinct files, disambiguated by NN alone (same slug, different NN)" || bad "expected 2 distinct same-slug files, found $DUP_COUNT: $DUP_FILES"
+grep -l 'Body one' "$D"/pending-0*.md >/dev/null 2>&1 && ok "first subject's body present in its own file" || bad "first subject's body missing"
+grep -l 'Body two' "$D"/pending-0*.md >/dev/null 2>&1 && ok "second subject's body present in its own file" || bad "second subject's body missing"
+# shellcheck disable=SC2086
+assert_conservation "$ORIG" "$D/pending.md" $DUP_FILES && ok "conservation holds for the duplicate-slug case" || bad "conservation FAILED for the duplicate-slug case"
+echo
+
+echo "=== unit-check: the collision-suffix loop itself is correct in isolation ==="
+# hooks/auto-split.sh's own candidate-vs-disk collision loop, extracted
+# verbatim in miniature, run directly against a directory that DOES already
+# hold the exact candidate name -- proving the LOOP mechanism is correct even
+# though (per the design note above) NN-continuation means the full script
+# never actually needs it on any real single-run input.
+D="$WORKROOT/collision_unit"; mkdir -p "$D"
+touch "$D/x-01-foo.md" "$D/x-01-foo-2.md"
+candidate="x-01-foo"; suffix=1; final="$candidate"
+while [ -e "$D/$final.md" ] || [ -L "$D/$final.md" ]; do
+  suffix=$((suffix + 1))
+  final="$candidate-$suffix"
+done
+[ "$final" = "x-01-foo-3" ] && ok "collision loop correctly walks past -1 (implicit) and -2 to land on the first free name (-3)" || bad "collision loop landed on the wrong name: $final"
 echo
 
 echo "=== summary ==="

@@ -13,57 +13,72 @@
 #     deliberate pin). A file whose over-ceiling bulk is entirely the still-open
 #     year has nowhere else to go either.
 #
-# Two split strategies, chosen mechanically from what the file actually
-# contains -- never guessed, never an LLM judgment call:
+# UNIFYING PRINCIPLE: over ceiling -> the main file becomes an INDEX, and the
+# items it used to hold become PAGES the index points at. Three strategies
+# below are three expressions of the same rule, chosen mechanically from what
+# the file actually contains -- never guessed, never an LLM judgment call --
+# plus one last-resort fallback for content with no structure to index at all:
 #
-#   DATE strategy (worklog/support/decisions): the file already carries
-#   `## YYYY-MM` or `## YYYY-MM-DD` section headings (mempenny always writes
-#   one shape or the other, newest-first, never both in the same file). Oldest
-#   periods (bottom of file, by the same non-increasing-order convention
-#   memory-shard-roll.md's own script already assumes and structurally
-#   verifies) are peeled into one locked `<topic>-<period>.md` shard per
-#   period -- exactly shard-roll's own shard shape, just not gated on calendar-
-#   year closure -- stopping as soon as the kept remainder fits the ceiling.
-#   The single newest period is NEVER peeled, no matter what: that floor stays
-#   live, mirroring hooks/shard-roll.sh's own "today is the floor" precedent
-#   (a different, not-yet-wired script -- this one doesn't call it or depend
-#   on it, deliberately, see the command doc for why).
+#   1. DATE (worklog/support/decisions): the file already carries `## YYYY-MM`
+#      or `## YYYY-MM-DD` section headings (mempenny always writes one shape
+#      or the other, newest-first, never both in the same file). The
+#      CHRONOLOGICAL expression of the index/pages rule -- the parent's own
+#      `## Shards` index block (added by the orchestrating command, not this
+#      script) IS the index; the locked `<topic>-<period>.md` shard files ARE
+#      the pages. Oldest periods (bottom of file, non-increasing order,
+#      structurally verified) are peeled into one page per period -- exactly
+#      shard-roll's own shard shape, just not gated on calendar-year closure
+#      -- stopping as soon as the kept remainder fits the ceiling. The single
+#      newest period is NEVER peeled, no matter how large it is alone -- that
+#      floor stays live, mirroring hooks/shard-roll.sh's own "today is the
+#      floor" precedent (a different, not-yet-wired script -- this one
+#      doesn't call it or depend on it, deliberately, see the command doc).
 #
-#   PROSE strategy (charter/pending): no heading structure exists to anchor on
-#   -- expected, see docs/memory-taxonomy-design.md SS3, "plain prose, no
-#   structure". Falls back to a position-based split, but -- unlike an earlier
-#   draft of this script -- the chronological DIRECTION is DERIVED, never
-#   assumed: it scans the file (outside frontmatter) for the first and last
-#   `YYYY-MM-DD` (or, failing that, `YYYY-MM`) datestamp it can find and
-#   compares them. Verified against the real motivating file: pending.md is
-#   newest-first (new items PREPENDED at the top) -- the opposite of
-#   worklog/support's own "newest month first" convention read the other way,
-#   and the opposite of what an earlier draft of this script assumed. Deriving
-#   it per-file instead of hardcoding either direction is what makes this
-#   correct regardless of which way any given file actually grows:
-#     - **newest-first** (top date > bottom date): the OLDEST content is the
-#       SUFFIX (bottom) -- shard the suffix, keep the PREFIX (top, newest/
-#       in-flight) live.
-#     - **newest-last** (top date < bottom date, content appended at the end):
-#       the OLDEST content is the PREFIX (top) -- shard the prefix, keep the
-#       SUFFIX (bottom, newest/in-flight) live.
-#   **No datestamp anywhere (or only one distinct date, so direction can't be
-#   derived at all) fails closed** rather than guessing -- a headingless,
-#   dateless file (a bare charter.md is the common case; pending.md in
-#   practice always carries dates) is reported for manual trimming instead.
-#   Either direction, the cut point is chosen to bring whichever side is KEPT
-#   under both ceilings, then nudged toward the SHARD side (always the
-#   ceiling-safe direction, whichever end that is) to the nearest fence-safe
-#   boundary so a fenced code block is never split across the two files.
+#   2. SUBJECT-INDEX (charter/pending, when `## `-structured): the SUBJECT
+#      expression of the same rule, and the primary strategy for a real
+#      pending.md (verified: frontmatter, a preamble, dozens of top-level
+#      `## ` subject blocks -- each an independent item, sometimes with
+#      nested `### ` detail that stays inside its parent -- newest at the
+#      TOP). Every top-level `## ` block becomes its own detail PAGE; the
+#      live file becomes the INDEX outright: frontmatter + preamble + one
+#      bullet per subject, original (file) order, each pointing at its page.
+#      Unlike DATE and PROSE-PEEL below, this never "peels the oldest and
+#      keeps some live" -- ALL currently-unindexed blocks become pages in one
+#      pass, because the index itself (all bullets, present) is what stays
+#      live and small. Detail pages are deliberately left UNLOCKED (see the
+#      command doc for why -- it's a feature, not an oversight).
 #
-# Neither strategy ever writes a `## Shards` index block -- that's the
-# orchestrating command's job afterward (mirrors memory-shard-roll.md's own
-# Step 7/Step 8 split: the script only ever moves bytes it already owns
-# start-to-end; deciding how to describe what moved, and preserving whatever
-# index lines a *prior* run already wrote, needs a Read+Edit pass this script
-# deliberately does not attempt -- seeing hooks/shard-roll.sh silently drop a
-# prior run's index entries by unconditionally regenerating the whole `##
-# Shards` block server-side was exactly the failure mode this choice avoids).
+#   3. PROSE-PEEL (charter/pending, only when NEITHER of the above applies --
+#      no date headings, fewer than 2 `## ` blocks): the last-resort fallback
+#      for genuinely structureless prose that still carries datestamps. Falls
+#      back to a position-based split, direction DERIVED from the file's own
+#      datestamps, never assumed: scans the body (outside frontmatter) for
+#      the first and last `YYYY-MM-DD` (or, failing that, `YYYY-MM`) it can
+#      find and compares them.
+#        - newest-first (top date > bottom date): oldest = SUFFIX (bottom) --
+#          shard the suffix, keep the PREFIX (top) live.
+#        - newest-last (top date < bottom date, content appended at the
+#          end): oldest = PREFIX (top) -- shard the prefix, keep the SUFFIX
+#          (bottom) live.
+#      No datestamp anywhere, or only one distinct date (no direction to
+#      derive), falls through to:
+#
+#   4. REFUSE CLOSED: a headingless, dateless file (a bare charter.md is the
+#      common real shape -- goals/requirements prose rarely carries dates)
+#      has nothing this script can safely index, peel, or order. Reported for
+#      manual trimming instead of guessing.
+#
+# For strategies 2 and 3, either direction/case, a fence-safety nudge always
+# moves the cut toward whichever side is becoming a PAGE (never the side
+# staying live as the INDEX/kept content) -- the ceiling-safe direction,
+# whichever end that happens to be -- so a fenced code block is never split
+# across two files.
+#
+# Neither strategy writes a `## Shards` index block for DATE, and SUBJECT-
+# INDEX's own index IS the whole live file it writes directly (no separate
+# index-block step needed) -- see the command doc's Step 6 for exactly which
+# half of index-maintenance is this script's job vs. the orchestrating
+# command's.
 #
 # Safety properties, all reused from shard-roll/curate, none reinvented:
 #   - backup already happened, by the caller, before this script ever runs.
@@ -72,17 +87,21 @@
 #   - whole-file fence-balance precondition (refuse an odd `` ``` `` count).
 #   - structural guard on date order (DATE strategy only) -- fails closed
 #     rather than mis-slicing a file that doesn't hold the assumed shape.
-#   - pre-flight collision check across the WHOLE batch of shards before any
-#     of them is written -- a later collision can never leave earlier shards
+#   - pre-flight collision check across the WHOLE batch of pages before any
+#     of them is written -- a later collision can never leave earlier pages
 #     half-written.
 #   - conservation check modeled byte-for-byte on memory-shard-roll.md's own:
 #     every non-blank, whitespace-normalized source line must be found
-#     verbatim somewhere in {shard(s) + kept file} before anything commits.
+#     verbatim somewhere in {page(s) + kept/index file} before anything
+#     commits. New index bullets are additions, not replacements of source
+#     lines, so the missing-only check permits them without weakening it.
 #   - atomic commit: mktemp on the SAME filesystem as MEMORY_DIR + mv.
-#   - shard files are frozen (`<!-- mempenny-lock -->`) the instant they're
-#     written, exactly like every other mempenny shard.
-#   - never peels 100% of the file -- always leaves at least the newest
-#     period (DATE) or at least one line (PROSE) live.
+#   - DATE and PROSE-PEEL pages are frozen (`<!-- mempenny-lock -->`) the
+#     instant they're written, like every other mempenny shard. SUBJECT-INDEX
+#     pages are deliberately NOT locked (see the command doc).
+#   - never discards content -- DATE/PROSE-PEEL always leave at least the
+#     newest period/one line live; SUBJECT-INDEX always represents every
+#     block via an index bullet, none silently dropped.
 #
 # Usage: auto-split.sh <MEMORY_DIR> <topic-file-basename> <topic-type> <ceiling-bytes> <ceiling-lines>
 # stdout (success, something split):  "SCRIPT_OK ..." + machine-readable fields
@@ -153,7 +172,11 @@ BEFORE_LINES=$(awk 'END{print NR}' "$TOPIC_FILE")
 
 # Idempotency / safety floor: never split a file that doesn't need it. A
 # second run right after a successful split is expected to land here and
-# report cleanly rather than doing anything.
+# report cleanly rather than doing anything -- this is also what makes a
+# fully-collapsed SUBJECT-INDEX file (frontmatter + preamble + bullets, no
+# raw `## ` blocks left) a trivial no-op with zero special-case code: an
+# all-bullets index is small by construction and simply never gets past this
+# check on a re-run.
 if [ "$BEFORE_BYTES" -le "$CEILING_BYTES" ] && [ "$BEFORE_LINES" -le "$CEILING_LINES" ]; then
   echo "SPLIT OK: nothing to split ($TOPIC_BASENAME is $BEFORE_BYTES B / $BEFORE_LINES lines, already at or under ceiling $CEILING_BYTES B / $CEILING_LINES lines)"
   exit 0
@@ -163,6 +186,26 @@ FENCE_COUNT=$(grep -c '^```' "$TOPIC_FILE" || true)
 if [ $((FENCE_COUNT % 2)) -ne 0 ]; then
   fail "$TOPIC_BASENAME has an odd number of \`\`\` fence lines ($FENCE_COUNT) -- refusing to extract from a file with unbalanced fences"
 fi
+
+# Frontmatter span -- shared by every strategy below (DATE never uses it
+# directly since its own preamble math is self-contained, but SUBJECT-INDEX
+# and PROSE-PEEL both need it, and computing it once here avoids the two
+# strategies' copies drifting apart).
+FRONTMATTER_END=0
+if [ "$(sed -n '1p' "$TOPIC_FILE")" = "---" ]; then
+  fm_end=$(awk 'NR>1 && $0=="---" { print NR; exit }' "$TOPIC_FILE")
+  [ -n "${fm_end:-}" ] && FRONTMATTER_END="$fm_end"
+fi
+FRONTMATTER_BYTES=0
+if [ "$FRONTMATTER_END" -ge 1 ]; then FRONTMATTER_BYTES=$(sed -n "1,${FRONTMATTER_END}p" "$TOPIC_FILE" | wc -c | tr -d ' '); fi
+TOTAL_LINES_FILE=$(awk 'END{print NR}' "$TOPIC_FILE")
+TOTAL_BYTES_FILE=$(wc -c < "$TOPIC_FILE" | tr -d ' ')
+
+is_even_fence_prefix() {
+  local n="$1" c
+  c=$(sed -n "1,${n}p" "$TOPIC_FILE" | grep -c '^```' || true)
+  [ $((c % 2)) -eq 0 ]
+}
 
 # --- detect which strategy applies (fence-aware, mechanical, no judgment) ---
 #
@@ -184,17 +227,50 @@ if [ -z "$DAY_LINES" ]; then
   ' "$TOPIC_FILE")
 fi
 
+GRANULARITY=""
 if [ -n "$DAY_LINES" ]; then
   GRANULARITY="day"; HEADING_LINES="$DAY_LINES"
 elif [ -n "$MONTH_LINES" ]; then
   GRANULARITY="month"; HEADING_LINES="$MONTH_LINES"
-else
-  GRANULARITY="prose"; HEADING_LINES=""
+fi
+
+# SUBJECT-INDEX eligibility is only even checked if DATE didn't already claim
+# the file. Generic `## ` heading (exactly two hashes -- `^## ` never matches
+# a `### ` line, since its third character is `#`, not the required space, so
+# nested `###` detail is structurally excluded with no extra logic needed).
+SUBJECT_LINES=""
+if [ -z "$GRANULARITY" ]; then
+  SUBJECT_LINES=$(awk '
+    /^```/ { infence = !infence; next }
+    !infence && /^## [^[:space:]]/ { print NR ":" $0 }
+  ' "$TOPIC_FILE")
+fi
+
+if [ -z "$GRANULARITY" ] && [ -n "$SUBJECT_LINES" ]; then
+  SUBJECT_COUNT=$(printf '%s\n' "$SUBJECT_LINES" | grep -c . || true)
+  if [ "$SUBJECT_COUNT" -ge 2 ]; then
+    GRANULARITY="subject-index"
+  elif [ "$SUBJECT_COUNT" -eq 1 ]; then
+    # Exactly one raw block: only commit to SUBJECT-INDEX if there's already
+    # an established index tail after it (this run is continuing a prior
+    # split, e.g. exactly one new subject was prepended since) -- otherwise a
+    # single incidental `## ` heading in otherwise-plain prose isn't strong
+    # enough evidence of real subject structure, and the file falls through
+    # to PROSE-PEEL/refuse like it would have with zero headings.
+    one_line=$(printf '%s\n' "$SUBJECT_LINES" | head -1)
+    one_ln="${one_line%%:*}"
+    tail_probe=$(sed -n "$((one_ln + 1)),\$p" "$TOPIC_FILE" | { grep -qE "^- \[.*\]\(${STEM}-[0-9]+.*\.md\)\$" && echo yes || true; })
+    [ "$tail_probe" = "yes" ] && GRANULARITY="subject-index"
+  fi
+fi
+
+if [ -z "$GRANULARITY" ]; then
+  GRANULARITY="prose-peel"
 fi
 
 SHARD_FILES=()
 
-if [ "$GRANULARITY" != "prose" ]; then
+if [ "$GRANULARITY" = "day" ] || [ "$GRANULARITY" = "month" ]; then
   # ============================== DATE strategy ==============================
   ENTRY_LINES=(); ENTRY_PERIODS=()
   while IFS=: read -r ln heading; do
@@ -223,7 +299,6 @@ if [ "$GRANULARITY" != "prose" ]; then
       DISTINCT_PERIODS+=("$p")
     fi
   done
-  TOTAL_LINES=$(awk 'END{print NR}' "$TOPIC_FILE")
 
   declare -A PERIOD_START PERIOD_END
   for i in "${!DISTINCT_PERIODS[@]}"; do
@@ -234,14 +309,13 @@ if [ "$GRANULARITY" != "prose" ]; then
       next_p="${DISTINCT_PERIODS[$next_idx]}"
       PERIOD_END[$p]=$((${PERIOD_FIRST_LINE[$next_p]} - 1))
     else
-      PERIOD_END[$p]="$TOTAL_LINES"
+      PERIOD_END[$p]="$TOTAL_LINES_FILE"
     fi
   done
 
-  FIRST_HEADING_LINE="${ENTRY_LINES[0]}"
-  PREAMBLE_END=$((FIRST_HEADING_LINE - 1))
-  PREAMBLE_BYTES=0
-  if [ "$PREAMBLE_END" -ge 1 ]; then PREAMBLE_BYTES=$(sed -n "1,${PREAMBLE_END}p" "$TOPIC_FILE" | wc -c | tr -d ' '); fi
+  DATE_PREAMBLE_END=$((ENTRY_LINES[0] - 1))
+  DATE_PREAMBLE_BYTES=0
+  if [ "$DATE_PREAMBLE_END" -ge 1 ]; then DATE_PREAMBLE_BYTES=$(sed -n "1,${DATE_PREAMBLE_END}p" "$TOPIC_FILE" | wc -c | tr -d ' '); fi
 
   N_PERIODS="${#DISTINCT_PERIODS[@]}"
   if [ "$N_PERIODS" -eq 1 ]; then
@@ -260,8 +334,8 @@ if [ "$GRANULARITY" != "prose" ]; then
   # Overhead the KEPT file always carries once the orchestrating command adds
   # its `## Shards` block afterward (this script itself writes none) -- a
   # small fixed allowance, same "+200" precedent as hooks/shard-roll.sh.
-  OVERHEAD_BYTES=$((PREAMBLE_BYTES + 200))
-  OVERHEAD_LINES=$((PREAMBLE_END + 10))
+  OVERHEAD_BYTES=$((DATE_PREAMBLE_BYTES + 200))
+  OVERHEAD_LINES=$((DATE_PREAMBLE_END + 10))
 
   # Walk newest -> oldest accumulating what would stay live; KEEP_COUNT is the
   # largest number of newest-first periods whose cumulative size still fits.
@@ -316,32 +390,147 @@ if [ "$GRANULARITY" != "prose" ]; then
   KEPT_TMP=$(mktemp "$MEMORY_DIR/.mempenny-autosplit-XXXXXXXX") || fail "mktemp failed"
   sed -n "1,${KEPT_END}p" "$TOPIC_FILE" > "$KEPT_TMP"
 
-else
-  # ============================== PROSE strategy ==============================
-  # No date-heading structure anywhere in the file -- expected for
-  # charter.md/pending.md. See the file header comment: direction is DERIVED
-  # from datestamps found in the file, never assumed either way.
-  FRONTMATTER_END=0
-  if [ "$(sed -n '1p' "$TOPIC_FILE")" = "---" ]; then
-    fm_end=$(awk 'NR>1 && $0=="---" { print NR; exit }' "$TOPIC_FILE")
-    [ -n "${fm_end:-}" ] && FRONTMATTER_END="$fm_end"
+elif [ "$GRANULARITY" = "subject-index" ]; then
+  # ============================== SUBJECT-INDEX strategy ==============================
+  # See file header for the unifying principle. Unit = one top-level `## `
+  # block: heading line through the line before the next fence-aware `## `
+  # (or EOF, or the start of an already-existing index tail -- see below).
+  # `### ` stays inside its parent by construction (see the detection regex
+  # above). Every block becomes its own detail PAGE; the live file becomes
+  # the INDEX: frontmatter + preamble + one bullet per subject, original
+  # (file) order, each pointing at its page.
+  ENTRY_LINES=(); ENTRY_HEADING_RAW=()
+  while IFS=: read -r ln heading; do
+    ENTRY_LINES+=("$ln"); ENTRY_HEADING_RAW+=("$heading")
+  done < <(printf '%s\n' "$SUBJECT_LINES")
+
+  N_ENTRIES="${#ENTRY_LINES[@]}"
+  SUBJ_PREAMBLE_END=$((ENTRY_LINES[0] - 1))
+
+  declare -a BLOCK_END
+  for ((i = 0; i < N_ENTRIES; i++)); do
+    next_idx=$((i + 1))
+    if [ "$next_idx" -lt "$N_ENTRIES" ]; then
+      BLOCK_END[i]=$((ENTRY_LINES[next_idx] - 1))
+    else
+      BLOCK_END[i]="$TOTAL_LINES_FILE"
+    fi
+  done
+
+  # Existing-index detection: scan the LAST block's own (naive) range for the
+  # first line matching THIS script's own index-bullet shape -- everything
+  # from there to EOF is a PRIOR run's already-collapsed index, preserved
+  # verbatim, never re-parsed as part of the last new block's body. A block
+  # that once had a `## ` heading loses it entirely once collapsed to a bare
+  # bullet, so it can never be mistaken for a genuine still-to-split block on
+  # a later run -- this scan only ever has real work to do on the trailing
+  # region right after the newest of THIS run's raw blocks.
+  EXISTING_INDEX_START=0
+  last_idx=$((N_ENTRIES - 1))
+  last_block_body_start=$((ENTRY_LINES[last_idx] + 1))
+  last_block_naive_end="${BLOCK_END[$last_idx]}"
+  if [ "$last_block_body_start" -le "$last_block_naive_end" ]; then
+    found_rel=$(sed -n "${last_block_body_start},${last_block_naive_end}p" "$TOPIC_FILE" \
+      | { grep -nE "^- \[.*\]\(${STEM}-[0-9]+.*\.md\)\$" || true; } | head -1 | cut -d: -f1)
+    if [ -n "${found_rel:-}" ]; then
+      EXISTING_INDEX_START=$((last_block_body_start + found_rel - 1))
+      BLOCK_END[last_idx]=$((EXISTING_INDEX_START - 1))
+    fi
   fi
 
-  TOTAL_BYTES_FILE=$(wc -c < "$TOPIC_FILE" | tr -d ' ')
-  TOTAL_LINES_FILE=$(awk 'END{print NR}' "$TOPIC_FILE")
+  # Existing max NN already on disk for this topic -- new pages continue
+  # numbering from there rather than restarting at 01, so a later run that
+  # prepends fresh blocks can never collide with pages an earlier run already
+  # wrote (see the command doc's SUBJECT-INDEX section for the full
+  # rationale). `10#` forces base-10 parsing so a zero-padded value like "08"
+  # is never misread as an invalid octal literal.
+  EXISTING_MAX_NN=0
+  for f in "$MEMORY_DIR/$STEM"-[0-9][0-9]*.md; do
+    [ -e "$f" ] || continue
+    nn_part=$(basename "$f" .md | sed -E "s/^${STEM}-([0-9]+).*/\1/")
+    [[ "$nn_part" =~ ^[0-9]+$ ]] || continue
+    nn_val=$((10#$nn_part))
+    [ "$nn_val" -gt "$EXISTING_MAX_NN" ] && EXISTING_MAX_NN="$nn_val"
+  done
 
-  FRONTMATTER_BYTES=0
-  if [ "$FRONTMATTER_END" -ge 1 ]; then FRONTMATTER_BYTES=$(sed -n "1,${FRONTMATTER_END}p" "$TOPIC_FILE" | wc -c | tr -d ' '); fi
+  # ASCII-only slug: strips a leading/embedded YYYY-MM-DD date token first
+  # (before general stripping, so its hyphens aren't mistaken for word
+  # separators), then keeps only letters/digits/spaces -- which safely and
+  # correctly removes emoji too, since every byte of a multi-byte UTF-8
+  # sequence falls outside A-Za-z0-9 (UTF-8 is designed so ASCII byte values
+  # never appear inside a multi-byte sequence, so this never mangles a
+  # partial character, it just deletes the whole thing cleanly).
+  slugify() {
+    local heading="$1" slug
+    slug=$(printf '%s' "$heading" | sed -E 's/[0-9]{4}-[0-9]{2}-[0-9]{2}//g')
+    slug=$(printf '%s' "$slug" | tr -cd 'A-Za-z0-9 ')
+    slug=$(printf '%s' "$slug" | tr -s '[:space:]' ' ' | sed -E 's/^ +| +$//g' | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
+    slug=$(printf '%s' "$slug" | cut -c1-40 | sed -E 's/-+$//; s/^-+//')
+    printf '%s' "$slug"
+  }
+  yaml_dquote() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
+  md_link_text() { printf '%s' "$1" | sed 's/\[/\\[/g; s/\]/\\]/g'; }
 
+  ENTRY_FILE=(); ENTRY_HEADING_TEXT=()
+  nn_counter="$EXISTING_MAX_NN"
+  for ((i = 0; i < N_ENTRIES; i++)); do
+    heading_text=$(printf '%s' "${ENTRY_HEADING_RAW[$i]}" | sed -E 's/^## //')
+    nn_counter=$((nn_counter + 1))
+    nn=$(printf '%02d' "$nn_counter")
+    slug=$(slugify "$heading_text")
+    if [ -n "$slug" ]; then candidate="$STEM-$nn-$slug"; else candidate="$STEM-$nn"; fi
+    # Deterministic collision fallback (append -2, -3, ...). NN is unique per
+    # entry by construction (nn_counter strictly increases every iteration),
+    # so this can only ever fire against a pre-existing file from some OTHER
+    # source (hand-created, or a differently-shaped prior run) -- not against
+    # anything this same run itself is about to write.
+    suffix=1
+    final="$candidate"
+    while [ -e "$MEMORY_DIR/$final.md" ] || [ -L "$MEMORY_DIR/$final.md" ]; do
+      suffix=$((suffix + 1))
+      final="$candidate-$suffix"
+    done
+    [[ "$final.md" =~ $H1 ]] || fail "generated detail filename fails H1: $final.md"
+    ENTRY_FILE+=("$final.md"); ENTRY_HEADING_TEXT+=("$heading_text")
+  done
+
+  for ((i = 0; i < N_ENTRIES; i++)); do
+    s_tmp=$(mktemp "$MEMORY_DIR/.mempenny-autosplit-XXXXXXXX") || fail "mktemp failed"
+    {
+      printf -- '---\nname: %s\ndescription: "%s"\nmetadata:\n  type: %s\n---\n' \
+        "$(basename "${ENTRY_FILE[$i]}" .md)" "$(yaml_dquote "${ENTRY_HEADING_TEXT[$i]}")" "$TOPIC_TYPE"
+      sed -n "${ENTRY_LINES[$i]},${BLOCK_END[$i]}p" "$TOPIC_FILE"
+    } > "$s_tmp"
+    # Deliberately NOT locked -- see commands/memory-auto-split.md's
+    # SUBJECT-INDEX section: these are ordinary in-flight subject files, and
+    # leaving them unlocked means a later /mempenny:memory-curate pass (or
+    # nap) can finally archive/delete a RESOLVED subject, which pending.md's
+    # own blanket curate-exemption previously made impossible.
+    chmod 600 "$s_tmp"
+    mv "$s_tmp" "$MEMORY_DIR/${ENTRY_FILE[$i]}"
+    SHARD_FILES+=("${ENTRY_FILE[$i]}")
+  done
+
+  KEPT_TMP=$(mktemp "$MEMORY_DIR/.mempenny-autosplit-XXXXXXXX") || fail "mktemp failed"
+  {
+    sed -n "1,${SUBJ_PREAMBLE_END}p" "$TOPIC_FILE"
+    printf '\n'
+    for ((i = 0; i < N_ENTRIES; i++)); do
+      printf -- '- [%s](%s)\n' "$(md_link_text "${ENTRY_HEADING_TEXT[$i]}")" "${ENTRY_FILE[$i]}"
+    done
+    if [ "$EXISTING_INDEX_START" -gt 0 ]; then
+      sed -n "${EXISTING_INDEX_START},${TOTAL_LINES_FILE}p" "$TOPIC_FILE"
+    fi
+  } > "$KEPT_TMP"
+
+else
+  # ============================== PROSE-PEEL strategy (last resort) ==============================
+  # Neither DATE nor SUBJECT-INDEX applied -- fewer than 2 (real) `## `
+  # blocks and no date-only headings. Falls back to a position-based split,
+  # direction DERIVED from datestamps in the file, never assumed either way.
   if [ "$FRONTMATTER_END" -ge "$((TOTAL_LINES_FILE - 1))" ]; then
     fail "$TOPIC_BASENAME has no peelable content outside its frontmatter -- a human should look at this file"
   fi
-
-  is_even_fence_prefix() {
-    local n="$1" c
-    c=$(sed -n "1,${n}p" "$TOPIC_FILE" | grep -c '^```' || true)
-    [ $((c % 2)) -eq 0 ]
-  }
 
   # --- derive chronological direction from datestamps -- never assumed ---
   # First/last OCCURRENCE in file order (not "first line's date vs last
@@ -362,7 +551,7 @@ else
     LAST_DATE=$(tail -n "+$BODY_START" "$TOPIC_FILE" | { grep -oE '[0-9]{4}-[0-9]{2}' || true; } | tail -1)
   fi
   if [ -z "$FIRST_DATE" ] || [ -z "$LAST_DATE" ]; then
-    fail "$TOPIC_BASENAME has no heading structure (no ## YYYY-MM/YYYY-MM-DD) and no detectable YYYY-MM-DD or YYYY-MM datestamp anywhere in its body -- cannot safely determine which end is oldest without guessing. Trim manually, or add explicit date structure so the DATE strategy can apply instead."
+    fail "$TOPIC_BASENAME has no heading structure (no ## YYYY-MM/YYYY-MM-DD, fewer than 2 ## subject blocks) and no detectable YYYY-MM-DD or YYYY-MM datestamp anywhere in its body -- cannot safely determine which end is oldest without guessing. Trim manually, or add explicit structure so DATE/SUBJECT-INDEX can apply instead."
   fi
   if [ "$FIRST_DATE" = "$LAST_DATE" ]; then
     fail "$TOPIC_BASENAME's first and last detected datestamp are both $FIRST_DATE -- a single distinct date gives no chronological direction to derive. Trim manually."
@@ -377,7 +566,7 @@ else
     # Oldest = PREFIX (top), newest = SUFFIX (bottom, kept live). Smallest CUT
     # (>= FRONTMATTER_END) such that the suffix (CUT+1..EOF) fits both
     # ceilings -- suffix size is non-increasing as CUT grows, so one forward
-    # pass finds the minimum directly. Peeled range (shard) is
+    # pass finds the minimum directly. Peeled range (page) is
     # (FRONTMATTER_END, CUT]; kept range is 1..FRONTMATTER_END plus
     # (CUT, TOTAL_LINES_FILE].
     CUT="$FRONTMATTER_END"
@@ -397,7 +586,7 @@ else
       CUT=$((TOTAL_LINES_FILE - 1))
     fi
 
-    # Fence-safety nudge FORWARD (grows the shard/prefix, shrinks the kept
+    # Fence-safety nudge FORWARD (grows the page/prefix, shrinks the kept
     # suffix -- the ceiling-safe direction here, since KEPT=suffix must stay
     # under ceiling and shrinking it only ever helps). Bounded by the
     # "leave at least one line live" floor, not an unbounded search.
@@ -505,7 +694,9 @@ fi
 
 # Conservation check -- modeled byte-for-byte on memory-shard-roll.md's own:
 # every non-blank, whitespace-normalized line of the ORIGINAL file must be
-# found verbatim somewhere in {every shard + the kept remainder}.
+# found verbatim somewhere in {every page + the kept/index remainder}. New
+# SUBJECT-INDEX bullets are additions, not replacements of any source line,
+# so this missing-only check permits them without weakening the guarantee.
 HAYSTACK=$(mktemp)
 { for f in "${SHARD_FILES[@]}"; do sed 's/^[[:space:]]*//; s/[[:space:]]*$//' "$MEMORY_DIR/$f"; done
   sed 's/^[[:space:]]*//; s/[[:space:]]*$//' "$KEPT_TMP"
@@ -540,8 +731,11 @@ SHARD_LIST=$(IFS=,; echo "${SHARD_SIZES[*]}")
 
 echo "SCRIPT_OK"
 echo "GRANULARITY=$GRANULARITY"
-if [ "$GRANULARITY" = "prose" ]; then
+if [ "$GRANULARITY" = "prose-peel" ]; then
   echo "PROSE_DIRECTION=$PROSE_DIRECTION"
+fi
+if [ "$GRANULARITY" = "subject-index" ]; then
+  echo "SUBJECTS_SPLIT=${#SHARD_FILES[@]}"
 fi
 echo "SHARD_FILES_WRITTEN: $SHARD_LIST"
 echo "BEFORE_BYTES=$BEFORE_BYTES"
