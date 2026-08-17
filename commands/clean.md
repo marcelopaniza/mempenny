@@ -984,6 +984,8 @@ For each `traps.md`/`rules.md`/`reference.md` (or their sub-topic split) flagged
 
 If multiple curatable topics are simultaneously over-ceiling, curate each one in turn — sequential, not parallel. Each curate run takes its own whole-directory backup; running them concurrently would race on that.
 
+**Auto-split for `charter.md`/`pending.md`:** the curate-exemption above is unchanged — curate still never runs on these two files. But for each of the two flagged over-ceiling in the loop above, ALSO invoke `/mempenny:memory-auto-split {MEMORY_DIR}/<file>` via the Skill tool (no `--yes` needed — like shard-roll, it has no confirmation gate at all; see `commands/memory-auto-split.md`). This is a different, orthogonal, lossless operation from curate — it never distills or deletes, only moves the oldest content verbatim into a shard and proves nothing was lost, so it does not weaken the exemption in any way. If both `charter.md` and `pending.md` are simultaneously over-ceiling, auto-split each in turn — sequential, not parallel, same reasoning as curate above.
+
 ## Step 12c — Check for over-ceiling log-topics
 
 Same skip condition as Step 12b (flat-layout runs skip entirely). Otherwise, run the identical size check from Step 12b against the three log-topics instead:
@@ -999,9 +1001,11 @@ for f in worklog.md support.md decisions.md; do
 done
 ```
 
-For each file flagged, invoke `/mempenny:memory-shard-roll {MEMORY_DIR}/<file>` via the Skill tool (shard-roll takes no `--yes` — it never asks for confirmation, it only ever moves already-closed-year content verbatim into a locked shard, backed by its own conservation check; see `docs/memory-taxonomy-design.md`). If shard-roll reports "nothing to roll" (the open, current year alone accounts for the size), do not retry or attempt any other reduction — per the design's own pin, an open year that alone exceeds the ceiling is tolerated, not force-split. Note it in this run's final summary as informational only.
+For each file flagged, invoke `/mempenny:memory-shard-roll {MEMORY_DIR}/<file>` via the Skill tool (shard-roll takes no `--yes` — it never asks for confirmation, it only ever moves already-closed-year content verbatim into a locked shard, backed by its own conservation check; see `docs/memory-taxonomy-design.md`). If shard-roll reports "nothing to roll" (the open, current year alone accounts for the size), do not retry or attempt any other reduction via shard-roll itself — per the design's own pin, an open year that alone exceeds the ceiling is tolerated, not force-split by shard-roll.
 
 If multiple log-topics are simultaneously over-ceiling, roll each one in turn — sequential, not parallel, same reasoning as Step 12b.
+
+**Auto-split fallback:** after shard-roll returns (whichever outcome — it rolled something, or reported "nothing to roll"), re-measure the file's size. If it is still over-ceiling, its bulk is entirely content shard-roll's own pin will never touch (the still-open period) — invoke `/mempenny:memory-auto-split {MEMORY_DIR}/<file>` via the Skill tool as the fallback (no `--yes` needed, same no-confirmation-gate reasoning as shard-roll; see `commands/memory-auto-split.md`). This does not change shard-roll's own behavior or pin in any way — shard-roll still only ever closes fully-past years; auto-split is what now picks up whatever shard-roll deliberately leaves behind. If multiple log-topics still need this fallback, run it sequentially, not parallel, same reasoning as above.
 
 Exit.
 
