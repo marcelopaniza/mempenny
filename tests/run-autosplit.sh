@@ -58,18 +58,24 @@ echo "(workroot: $WORKROOT)"
 echo
 
 # =============================================================================
-echo "=== case: prose pending.md at the real ceiling (the motivating scenario) ==="
-D="$WORKROOT/prose"; mkdir -p "$D"
+echo "=== case: prose pending.md, NEWEST-FIRST (the real, verified production convention -- the motivating scenario) ==="
+D="$WORKROOT/prose_newest_first"; mkdir -p "$D"
 {
   printf -- '---\ntype: pending\n---\n\n'
-  repeat_line 650 "Pending item __N__: in-flight work item number __N__, appended after the previous one, needs follow-up and tracking across sessions until it is done."
+  for n in $(seq 1 650); do
+    d=$(date -u -d "2026-08-13 - $((n / 20)) days" +%Y-%m-%d 2>/dev/null || date -u -v-"$((n / 20))"d -jf "%Y-%m-%d" "2026-08-13" +%Y-%m-%d)
+    printf -- 'Pending item %05d (%s): in-flight work, newest items PREPENDED at the top -- verified real pending.md convention.\n' "$n" "$d"
+  done
 } > "$D/pending.md"
 ORIG="$WORKROOT/prose.orig.md"; cp "$D/pending.md" "$ORIG"
 BACKUP="$WORKROOT/prose.backup"; cp -a "$D" "$BACKUP"
+FIRST_LINE_ORIG=$(sed -n '5p' "$ORIG")   # first content line (right after frontmatter) -- newest, must stay live
+LAST_LINE_ORIG=$(tail -n1 "$ORIG")       # last line -- oldest, must end up in the shard
 
 OUT=$(run_split "$D" "pending.md" "pending" 25600 200); RC=$?
 echo "$OUT" | sed 's/^/    /'
 [ "$RC" -eq 0 ] && echo "$OUT" | grep -q "^SCRIPT_OK$" && ok "exit 0 + SCRIPT_OK" || bad "expected SCRIPT_OK/exit0, got rc=$RC"
+echo "$OUT" | grep -q "^PROSE_DIRECTION=newest-first$" && ok "direction correctly derived as newest-first from the file's own datestamps" || bad "direction not derived as newest-first: $OUT"
 echo "$OUT" | grep -q "^TOTAL_MISSING=0$" && ok "script's own conservation check: 0 missing" || bad "script reported missing lines"
 
 SHARD=$(find "$D" -maxdepth 1 -name 'pending-archive-*.md' -type f)
@@ -84,9 +90,15 @@ AFTER_BYTES=$(wc -c <"$D/pending.md" | tr -d ' '); AFTER_LINES=$(wc -l <"$D/pend
 grep -q '<!-- mempenny-lock -->' "$SHARD" && ok "shard is lock-marked (frozen)" || bad "shard missing lock marker"
 grep -q '^type: pending$' "$SHARD" && ok "shard frontmatter carries type: pending" || bad "shard frontmatter wrong/missing"
 
-TAIL_LINE=$(tail -n1 "$ORIG")
-grep -qFx -- "$TAIL_LINE" "$D/pending.md" && ok "newest (tail) line still live, undisturbed" || bad "newest tail line missing from the live file"
-grep -qFx -- "$TAIL_LINE" "$SHARD" 2>/dev/null && bad "newest tail line leaked into the shard" || ok "newest tail line correctly absent from the shard"
+# The critical direction assertion: for a newest-first file, the OLDEST content
+# (the file's LAST line) must be sharded, and the NEWEST content (the file's
+# FIRST content line) must stay live -- exactly backwards from a naive
+# head-is-oldest assumption, and exactly what the verified real pending.md
+# convention requires.
+grep -qFx -- "$FIRST_LINE_ORIG" "$D/pending.md" && ok "newest (first/top) line still live, undisturbed" || bad "newest top line missing from the live file"
+grep -qFx -- "$FIRST_LINE_ORIG" "$SHARD" 2>/dev/null && bad "newest top line leaked into the shard" || ok "newest top line correctly absent from the shard"
+grep -qFx -- "$LAST_LINE_ORIG" "$SHARD" && ok "oldest (last/bottom) line correctly sharded" || bad "oldest bottom line missing from the shard"
+grep -qFx -- "$LAST_LINE_ORIG" "$D/pending.md" 2>/dev/null && bad "oldest bottom line leaked into the live file" || ok "oldest bottom line correctly absent from the live file"
 
 SUM_1=$(sha256sum "$D/pending.md" "$SHARD" | sha256sum)
 OUT2=$(run_split "$D" "pending.md" "pending" 25600 200)
@@ -96,23 +108,48 @@ SUM_2=$(sha256sum "$D/pending.md" "$SHARD" | sha256sum)
 echo
 
 # =============================================================================
-echo "=== case: prose with a fenced code block straddling the naive cut point ==="
+echo "=== case: prose pending.md, NEWEST-LAST (append-style -- the other direction the algorithm must also derive correctly) ==="
+D="$WORKROOT/prose_newest_last"; mkdir -p "$D"
+{
+  printf -- '---\ntype: pending\n---\n\n'
+  for n in $(seq 1 650); do
+    d=$(date -u -d "2026-06-01 + $((n / 20)) days" +%Y-%m-%d 2>/dev/null || date -u -v+"$((n / 20))"d -jf "%Y-%m-%d" "2026-06-01" +%Y-%m-%d)
+    printf -- 'Pending item %05d (%s): in-flight work, appended at the bottom.\n' "$n" "$d"
+  done
+} > "$D/pending.md"
+ORIG="$WORKROOT/prose_last.orig.md"; cp "$D/pending.md" "$ORIG"
+FIRST_LINE_ORIG=$(sed -n '5p' "$ORIG")   # oldest -- must be sharded
+LAST_LINE_ORIG=$(tail -n1 "$ORIG")       # newest -- must stay live
+
+OUT=$(run_split "$D" "pending.md" "pending" 25600 200); RC=$?
+echo "$OUT" | sed 's/^/    /'
+[ "$RC" -eq 0 ] && echo "$OUT" | grep -q "^SCRIPT_OK$" && ok "exit 0 + SCRIPT_OK" || bad "expected SCRIPT_OK/exit0, got rc=$RC"
+echo "$OUT" | grep -q "^PROSE_DIRECTION=newest-last$" && ok "direction correctly derived as newest-last" || bad "direction not derived as newest-last: $OUT"
+
+SHARD=$(find "$D" -maxdepth 1 -name 'pending-archive-*.md' -type f)
+assert_conservation "$ORIG" "$D/pending.md" "$SHARD" && ok "conservation holds for the newest-last direction" || bad "conservation FAILED for newest-last"
+grep -qFx -- "$LAST_LINE_ORIG" "$D/pending.md" && ok "newest (last/bottom) line still live, undisturbed" || bad "newest bottom line missing from the live file"
+grep -qFx -- "$FIRST_LINE_ORIG" "$SHARD" && ok "oldest (first/top) line correctly sharded" || bad "oldest top line missing from the shard"
+echo
+
+# =============================================================================
+echo "=== case: prose (newest-first) with a fenced code block straddling the naive cut point ==="
 D="$WORKROOT/prose_fence"; mkdir -p "$D"
 {
   printf -- '---\ntype: pending\n---\n\n'
-  repeat_line 13 "Early filler line __N__, old content appended long ago in the file's history."
+  repeat_line 13 "Recent filler line __N__ (2026-08-16), newer in-flight content near the top."
   printf -- '```bash\n'
   repeat_line 30 "echo 'fenced content line __N__ that must never be split mid-block'"
   printf -- '```\n'
-  repeat_line 20 "Recent filler line __N__, newer in-flight content near the tail."
+  repeat_line 20 "Early filler line __N__ (2026-07-01), old content near the bottom."
 } > "$D/pending.md"
 ORIG="$WORKROOT/fence.orig.md"; cp "$D/pending.md" "$ORIG"
 
 # Ceiling chosen so the NAIVE (fence-unaware) cut point would land inside the
-# fence: verified interactively while designing this fixture (line 23 =
-# "```bash", line 54 = closing "```"; the smallest sufficient cut without any
-# fence-awareness lands at line 35, inside the block).
-OUT=$(run_split "$D" "pending.md" "pending" 2650 200); RC=$?
+# fence: verified interactively while designing this fixture (line 18 =
+# "```bash", line 49 = closing "```"; the largest kept-head that fits under
+# 1800 bytes without any fence-awareness lands at line 30, inside the block).
+OUT=$(run_split "$D" "pending.md" "pending" 1800 200); RC=$?
 echo "$OUT" | sed 's/^/    /'
 [ "$RC" -eq 0 ] && echo "$OUT" | grep -q "^SCRIPT_OK$" && ok "split succeeded" || bad "split failed unexpectedly rc=$RC"
 
@@ -226,18 +263,52 @@ SUM_AFTER=$(sha256sum "$D/worklog.md")
 echo
 
 # =============================================================================
-echo "=== case: charter.md (paired with pending.md under the same curate-exemption) ==="
+echo "=== case: charter.md WITH dates (paired with pending.md under the same curate-exemption -- proves the mechanism is shared, not pending.md-specific) ==="
 D="$WORKROOT/charter"; mkdir -p "$D"
 {
   printf -- '---\ntype: charter\n---\n\n'
-  repeat_line 500 "Requirement __N__: the artifact must continue to satisfy this requirement, appended after the previous one as scope grew over time."
+  for n in $(seq 1 500); do
+    d=$(date -u -d "2026-01-01 + $((n / 15)) days" +%Y-%m-%d 2>/dev/null || date -u -v+"$((n / 15))"d -jf "%Y-%m-%d" "2026-01-01" +%Y-%m-%d)
+    printf -- 'Requirement %05d (%s): the artifact must continue to satisfy this requirement, appended after the previous one as scope grew over time.\n' "$n" "$d"
+  done
 } > "$D/charter.md"
 ORIG="$WORKROOT/charter.orig.md"; cp "$D/charter.md" "$ORIG"
 OUT=$(run_split "$D" "charter.md" "charter" 25600 200); RC=$?
 echo "$OUT" | sed 's/^/    /'
-[ "$RC" -eq 0 ] && echo "$OUT" | grep -q "^SCRIPT_OK$" && ok "charter.md split succeeded (same mechanism as pending.md)" || bad "charter.md split failed rc=$RC"
+[ "$RC" -eq 0 ] && echo "$OUT" | grep -q "^SCRIPT_OK$" && ok "dated charter.md split succeeds (same mechanism as pending.md)" || bad "charter.md split failed rc=$RC"
+echo "$OUT" | grep -q "^PROSE_DIRECTION=newest-last$" && ok "direction correctly derived for charter.md too" || bad "direction not derived correctly for charter.md: $OUT"
 SHARD=$(find "$D" -maxdepth 1 -name 'charter-archive-*.md' -type f)
 assert_conservation "$ORIG" "$D/charter.md" "$SHARD" && ok "conservation holds for charter.md" || bad "conservation FAILED for charter.md"
+echo
+
+# =============================================================================
+echo "=== case: charter.md with NO dates -- the realistic shape (goal/requirements prose, no chronology) -- must fail closed, not guess ==="
+D="$WORKROOT/charter_dateless"; mkdir -p "$D"
+{
+  printf -- '---\ntype: charter\n---\n\n'
+  repeat_line 400 "Requirement __N__: the artifact must satisfy this requirement, no datestamp anywhere in this file to establish chronology."
+} > "$D/charter.md"
+SUM_BEFORE=$(sha256sum "$D/charter.md")
+OUT=$(run_split "$D" "charter.md" "charter" 25600 200); RC=$?
+echo "$OUT" | sed 's/^/    /'
+{ [ "$RC" -ne 0 ] && echo "$OUT" | grep -q "^SPLIT FAILED:" && echo "$OUT" | grep -qi "datestamp"; } && ok "refuses to guess on a dateless, headingless file -- fails closed rather than picking an arbitrary direction" || bad "did not correctly refuse the dateless case (rc=$RC): $OUT"
+SUM_AFTER=$(sha256sum "$D/charter.md")
+[ "$SUM_BEFORE" = "$SUM_AFTER" ] && ok "dateless charter.md left completely untouched" || bad "dateless charter.md was modified!"
+echo
+
+# =============================================================================
+echo "=== case: prose with a single distinct datestamp -- no direction to derive, must also fail closed ==="
+D="$WORKROOT/prose_single_date"; mkdir -p "$D"
+{
+  printf -- '---\ntype: pending\n---\n\n'
+  repeat_line 400 "Pending item __N__ (2026-08-16): every line carries the exact same date, so there is no chronological direction to derive."
+} > "$D/pending.md"
+SUM_BEFORE=$(sha256sum "$D/pending.md")
+OUT=$(run_split "$D" "pending.md" "pending" 25600 200); RC=$?
+echo "$OUT" | sed 's/^/    /'
+{ [ "$RC" -ne 0 ] && echo "$OUT" | grep -q "^SPLIT FAILED:" && echo "$OUT" | grep -qi "no chronological direction"; } && ok "refuses to guess when first and last datestamp are identical" || bad "did not correctly refuse the single-date case (rc=$RC): $OUT"
+SUM_AFTER=$(sha256sum "$D/pending.md")
+[ "$SUM_BEFORE" = "$SUM_AFTER" ] && ok "single-date pending.md left completely untouched" || bad "single-date pending.md was modified!"
 echo
 
 # =============================================================================
@@ -306,10 +377,19 @@ echo
 
 echo "=== edge case: second genuine over-ceiling episode the same day -- fails closed, no data loss ==="
 D="$WORKROOT/same_day_collision"; mkdir -p "$D"
-{ printf -- '---\ntype: pending\n---\n\n'; repeat_line 700 "Pending item __N__: filler appended after the previous item."; } > "$D/pending.md"
+{
+  printf -- '---\ntype: pending\n---\n\n'
+  for n in $(seq 1 700); do
+    d=$(date -u -d "2026-06-01 + $((n / 20)) days" +%Y-%m-%d 2>/dev/null || date -u -v+"$((n / 20))"d -jf "%Y-%m-%d" "2026-06-01" +%Y-%m-%d)
+    printf -- 'Pending item %05d (%s): filler appended after the previous item.\n' "$n" "$d"
+  done
+} > "$D/pending.md"
 run_split "$D" "pending.md" "pending" 25600 200 | grep -q "^SCRIPT_OK$" && ok "first split of the day succeeds" || bad "first split unexpectedly failed"
 SNAPSHOT_SHARD=$(sha256sum "$D"/pending-archive-*.md)
-repeat_line 700 "Second-episode pending item __N__: more filler appended later the same day." >>"$D/pending.md"
+for n in $(seq 701 1400); do
+  d=$(date -u -d "2026-08-16 + $(((n - 700) / 20)) days" +%Y-%m-%d 2>/dev/null || date -u -v+"$(((n - 700) / 20))"d -jf "%Y-%m-%d" "2026-08-16" +%Y-%m-%d)
+  printf -- 'Second-episode pending item %05d (%s): more filler appended later the same day.\n' "$n" "$d"
+done >>"$D/pending.md"
 OUT=$(run_split "$D" "pending.md" "pending" 25600 200); RC=$?
 echo "$OUT" | sed 's/^/    /'
 { [ "$RC" -ne 0 ] && echo "$OUT" | grep -qi "collision"; } && ok "second same-day episode fails closed (documented limitation, not silent overwrite/data loss)" || bad "second same-day episode did not fail closed as designed"

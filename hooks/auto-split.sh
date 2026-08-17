@@ -31,15 +31,29 @@
 #
 #   PROSE strategy (charter/pending): no heading structure exists to anchor on
 #   -- expected, see docs/memory-taxonomy-design.md SS3, "plain prose, no
-#   structure". Falls back to a position-based split: the file's PREFIX (head,
-#   right after any YAML frontmatter) is treated as the oldest content and the
-#   SUFFIX (tail) as the newest/in-flight content, under the documented
-#   assumption that these files grow by appending new material at the end over
-#   time. THIS ASSUMPTION IS THE OPEN DESIGN QUESTION flagged back to the
-#   human -- see commands/memory-auto-split.md's "Open design question" note.
-#   The cut point is the smallest peelable prefix that brings the kept suffix
-#   under both ceilings, nudged forward (shrinking the shard, growing what
-#   stays live -- always the ceiling-safe direction) to the nearest fence-safe
+#   structure". Falls back to a position-based split, but -- unlike an earlier
+#   draft of this script -- the chronological DIRECTION is DERIVED, never
+#   assumed: it scans the file (outside frontmatter) for the first and last
+#   `YYYY-MM-DD` (or, failing that, `YYYY-MM`) datestamp it can find and
+#   compares them. Verified against the real motivating file: pending.md is
+#   newest-first (new items PREPENDED at the top) -- the opposite of
+#   worklog/support's own "newest month first" convention read the other way,
+#   and the opposite of what an earlier draft of this script assumed. Deriving
+#   it per-file instead of hardcoding either direction is what makes this
+#   correct regardless of which way any given file actually grows:
+#     - **newest-first** (top date > bottom date): the OLDEST content is the
+#       SUFFIX (bottom) -- shard the suffix, keep the PREFIX (top, newest/
+#       in-flight) live.
+#     - **newest-last** (top date < bottom date, content appended at the end):
+#       the OLDEST content is the PREFIX (top) -- shard the prefix, keep the
+#       SUFFIX (bottom, newest/in-flight) live.
+#   **No datestamp anywhere (or only one distinct date, so direction can't be
+#   derived at all) fails closed** rather than guessing -- a headingless,
+#   dateless file (a bare charter.md is the common case; pending.md in
+#   practice always carries dates) is reported for manual trimming instead.
+#   Either direction, the cut point is chosen to bring whichever side is KEPT
+#   under both ceilings, then nudged toward the SHARD side (always the
+#   ceiling-safe direction, whichever end that is) to the nearest fence-safe
 #   boundary so a fenced code block is never split across the two files.
 #
 # Neither strategy ever writes a `## Shards` index block -- that's the
@@ -305,9 +319,8 @@ if [ "$GRANULARITY" != "prose" ]; then
 else
   # ============================== PROSE strategy ==============================
   # No date-heading structure anywhere in the file -- expected for
-  # charter.md/pending.md. See the file header comment for the documented
-  # (and explicitly flagged) "content is appended at the end over time"
-  # assumption this direction relies on.
+  # charter.md/pending.md. See the file header comment: direction is DERIVED
+  # from datestamps found in the file, never assumed either way.
   FRONTMATTER_END=0
   if [ "$(sed -n '1p' "$TOPIC_FILE")" = "---" ]; then
     fm_end=$(awk 'NR>1 && $0=="---" { print NR; exit }' "$TOPIC_FILE")
@@ -324,48 +337,125 @@ else
     fail "$TOPIC_BASENAME has no peelable content outside its frontmatter -- a human should look at this file"
   fi
 
-  # Smallest CUT (>= FRONTMATTER_END) such that the suffix (CUT+1..EOF) fits
-  # both ceilings. suffix_bytes and suffix_lines are both non-increasing as
-  # CUT grows, so a single forward pass finds the minimum directly -- no
-  # search needed. Peeled range is (FRONTMATTER_END, CUT]; kept range is
-  # 1..FRONTMATTER_END plus (CUT, TOTAL_LINES_FILE].
-  CUT="$FRONTMATTER_END"
-  prefix_bytes="$FRONTMATTER_BYTES"
-  while IFS= read -r -d '' llen; do
-    CUT=$((CUT + 1))
-    prefix_bytes=$((prefix_bytes + llen))
-    suffix_bytes=$((TOTAL_BYTES_FILE - prefix_bytes))
-    suffix_lines=$((TOTAL_LINES_FILE - CUT))
-    if [ "$suffix_bytes" -le "$CEILING_BYTES" ] && [ "$suffix_lines" -le "$CEILING_LINES" ]; then
-      break
-    fi
-  done < <(tail -n "+$((FRONTMATTER_END + 1))" "$TOPIC_FILE" | awk '{ printf "%d\0", length($0) + 1 }')
-
-  # Floor: always leave at least the file's last line live, no matter how big
-  # it alone is -- mirrors the DATE strategy's "newest period always survives".
-  if [ "$CUT" -ge "$TOTAL_LINES_FILE" ]; then
-    CUT=$((TOTAL_LINES_FILE - 1))
-  fi
-
-  # Fence-safety nudge: walk CUT FORWARD (shrinking the shard, growing what
-  # stays live -- the only ceiling-safe direction) to the nearest boundary
-  # where the peeled prefix (1..CUT) has an EVEN `` ``` `` count. The whole
-  # file is already confirmed even, so CUT=TOTAL_LINES_FILE is trivially safe
-  # -- the loop is bounded by the "leave at least one line live" floor below,
-  # not by an unbounded search.
   is_even_fence_prefix() {
     local n="$1" c
     c=$(sed -n "1,${n}p" "$TOPIC_FILE" | grep -c '^```' || true)
     [ $((c % 2)) -eq 0 ]
   }
-  while [ "$CUT" -lt "$((TOTAL_LINES_FILE - 1))" ] && ! is_even_fence_prefix "$CUT"; do
-    CUT=$((CUT + 1))
-  done
-  is_even_fence_prefix "$CUT" || fail "no fence-safe split boundary found without shredding the entire file -- a human should look at $TOPIC_BASENAME's fenced code blocks"
 
-  if [ "$CUT" -le "$FRONTMATTER_END" ]; then
-    echo "SPLIT OK: nothing to split ($TOPIC_BASENAME has no peelable content once frontmatter and fence-safety are accounted for)"
-    exit 0
+  # --- derive chronological direction from datestamps -- never assumed ---
+  # First/last OCCURRENCE in file order (not "first line's date vs last
+  # line's date" -- a line with no date at all is simply skipped by grep -o).
+  # Day-granularity dates are preferred; month-only is the fallback only when
+  # no full YYYY-MM-DD appears anywhere. ISO, zero-padded fields sort lexically
+  # == chronologically, same trick used by the DATE strategy's own guard.
+  BODY_START=$((FRONTMATTER_END + 1))
+  # `|| true` on each: under `set -eo pipefail`, grep -oE finding ZERO matches
+  # (routine and expected for a genuinely dateless file, not an error) would
+  # otherwise kill the script right here -- before the emptiness is ever
+  # checked below -- exactly the "grep -c ... || true" trap already guarded
+  # against elsewhere in this file (FENCE_COUNT, is_even_fence_prefix).
+  FIRST_DATE=$(tail -n "+$BODY_START" "$TOPIC_FILE" | { grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}' || true; } | head -1)
+  LAST_DATE=$(tail -n "+$BODY_START" "$TOPIC_FILE" | { grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}' || true; } | tail -1)
+  if [ -z "$FIRST_DATE" ] || [ -z "$LAST_DATE" ]; then
+    FIRST_DATE=$(tail -n "+$BODY_START" "$TOPIC_FILE" | { grep -oE '[0-9]{4}-[0-9]{2}' || true; } | head -1)
+    LAST_DATE=$(tail -n "+$BODY_START" "$TOPIC_FILE" | { grep -oE '[0-9]{4}-[0-9]{2}' || true; } | tail -1)
+  fi
+  if [ -z "$FIRST_DATE" ] || [ -z "$LAST_DATE" ]; then
+    fail "$TOPIC_BASENAME has no heading structure (no ## YYYY-MM/YYYY-MM-DD) and no detectable YYYY-MM-DD or YYYY-MM datestamp anywhere in its body -- cannot safely determine which end is oldest without guessing. Trim manually, or add explicit date structure so the DATE strategy can apply instead."
+  fi
+  if [ "$FIRST_DATE" = "$LAST_DATE" ]; then
+    fail "$TOPIC_BASENAME's first and last detected datestamp are both $FIRST_DATE -- a single distinct date gives no chronological direction to derive. Trim manually."
+  fi
+  if [[ "$FIRST_DATE" > "$LAST_DATE" ]]; then
+    PROSE_DIRECTION="newest-first"
+  else
+    PROSE_DIRECTION="newest-last"
+  fi
+
+  if [ "$PROSE_DIRECTION" = "newest-last" ]; then
+    # Oldest = PREFIX (top), newest = SUFFIX (bottom, kept live). Smallest CUT
+    # (>= FRONTMATTER_END) such that the suffix (CUT+1..EOF) fits both
+    # ceilings -- suffix size is non-increasing as CUT grows, so one forward
+    # pass finds the minimum directly. Peeled range (shard) is
+    # (FRONTMATTER_END, CUT]; kept range is 1..FRONTMATTER_END plus
+    # (CUT, TOTAL_LINES_FILE].
+    CUT="$FRONTMATTER_END"
+    prefix_bytes="$FRONTMATTER_BYTES"
+    while IFS= read -r -d '' llen; do
+      CUT=$((CUT + 1))
+      prefix_bytes=$((prefix_bytes + llen))
+      suffix_bytes=$((TOTAL_BYTES_FILE - prefix_bytes))
+      suffix_lines=$((TOTAL_LINES_FILE - CUT))
+      if [ "$suffix_bytes" -le "$CEILING_BYTES" ] && [ "$suffix_lines" -le "$CEILING_LINES" ]; then
+        break
+      fi
+    done < <(tail -n "+$BODY_START" "$TOPIC_FILE" | awk '{ printf "%d\0", length($0) + 1 }')
+
+    # Floor: always leave at least the file's last line live.
+    if [ "$CUT" -ge "$TOTAL_LINES_FILE" ]; then
+      CUT=$((TOTAL_LINES_FILE - 1))
+    fi
+
+    # Fence-safety nudge FORWARD (grows the shard/prefix, shrinks the kept
+    # suffix -- the ceiling-safe direction here, since KEPT=suffix must stay
+    # under ceiling and shrinking it only ever helps). Bounded by the
+    # "leave at least one line live" floor, not an unbounded search.
+    while [ "$CUT" -lt "$((TOTAL_LINES_FILE - 1))" ] && ! is_even_fence_prefix "$CUT"; do
+      CUT=$((CUT + 1))
+    done
+    is_even_fence_prefix "$CUT" || fail "no fence-safe split boundary found without shredding the entire file -- a human should look at $TOPIC_BASENAME's fenced code blocks"
+
+    if [ "$CUT" -le "$FRONTMATTER_END" ]; then
+      echo "SPLIT OK: nothing to split ($TOPIC_BASENAME has no peelable content once frontmatter and fence-safety are accounted for)"
+      exit 0
+    fi
+
+    SHARD_RANGE_START=$((FRONTMATTER_END + 1)); SHARD_RANGE_END="$CUT"
+    KEPT_TAIL_START=$((CUT + 1))
+  else
+    # newest-first: oldest = SUFFIX (bottom), newest = PREFIX (top, kept
+    # live). Largest CUT (frontmatter through some line) such that the HEAD
+    # (1..CUT, includes frontmatter) fits both ceilings -- the mirror image of
+    # the branch above: grow the kept head as long as it still fits, stop the
+    # instant the next line would push it over.
+    CUT="$FRONTMATTER_END"
+    cum_bytes="$FRONTMATTER_BYTES"
+    cur_line="$FRONTMATTER_END"
+    while IFS= read -r -d '' llen; do
+      cur_line=$((cur_line + 1))
+      candidate_bytes=$((cum_bytes + llen))
+      if [ "$candidate_bytes" -le "$CEILING_BYTES" ] && [ "$cur_line" -le "$CEILING_LINES" ]; then
+        cum_bytes="$candidate_bytes"
+        CUT="$cur_line"
+      else
+        break
+      fi
+    done < <(tail -n "+$BODY_START" "$TOPIC_FILE" | awk '{ printf "%d\0", length($0) + 1 }')
+
+    # Floor: always leave at least one line of head content live, even if that
+    # alone is over ceiling (mirrors the DATE strategy's floor-tolerated case).
+    if [ "$CUT" -le "$FRONTMATTER_END" ]; then
+      CUT=$((FRONTMATTER_END + 1))
+    fi
+
+    # Fence-safety nudge BACKWARD (shrinks the kept head -- the ceiling-safe
+    # direction here, since KEPT=head must stay under ceiling and shrinking it
+    # only ever helps; growing it back toward the naive cut could reopen an
+    # unclosed fence). Bounded by the same "leave at least one line live"
+    # floor, not an unbounded search.
+    while [ "$CUT" -gt "$((FRONTMATTER_END + 1))" ] && ! is_even_fence_prefix "$CUT"; do
+      CUT=$((CUT - 1))
+    done
+    is_even_fence_prefix "$CUT" || fail "no fence-safe split boundary found without shredding the entire file -- a human should look at $TOPIC_BASENAME's fenced code blocks"
+
+    if [ "$CUT" -ge "$TOTAL_LINES_FILE" ]; then
+      echo "SPLIT OK: nothing to split ($TOPIC_BASENAME has no peelable content once frontmatter and fence-safety are accounted for)"
+      exit 0
+    fi
+
+    SHARD_RANGE_START=$((CUT + 1)); SHARD_RANGE_END="$TOTAL_LINES_FILE"
+    KEPT_HEAD_END="$CUT"
   fi
 
   TODAY=$(date -u +%Y-%m-%d)
@@ -377,21 +467,21 @@ else
 
   s_tmp=$(mktemp "$MEMORY_DIR/.mempenny-autosplit-XXXXXXXX") || fail "mktemp failed"
   { printf -- '---\ntype: %s\n---\n<!-- mempenny-lock -->\n' "$TOPIC_TYPE"
-    if [ "$FRONTMATTER_END" -ge 1 ]; then
-      sed -n "$((FRONTMATTER_END + 1)),${CUT}p" "$TOPIC_FILE"
-    else
-      sed -n "1,${CUT}p" "$TOPIC_FILE"
-    fi
+    sed -n "${SHARD_RANGE_START},${SHARD_RANGE_END}p" "$TOPIC_FILE"
   } > "$s_tmp"
   chmod 600 "$s_tmp"
   mv "$s_tmp" "$shard"
   SHARD_FILES+=("$(basename "$shard")")
 
   KEPT_TMP=$(mktemp "$MEMORY_DIR/.mempenny-autosplit-XXXXXXXX") || fail "mktemp failed"
-  {
-    if [ "$FRONTMATTER_END" -ge 1 ]; then sed -n "1,${FRONTMATTER_END}p" "$TOPIC_FILE"; fi
-    sed -n "$((CUT + 1)),${TOTAL_LINES_FILE}p" "$TOPIC_FILE"
-  } > "$KEPT_TMP"
+  if [ "$PROSE_DIRECTION" = "newest-last" ]; then
+    {
+      if [ "$FRONTMATTER_END" -ge 1 ]; then sed -n "1,${FRONTMATTER_END}p" "$TOPIC_FILE"; fi
+      sed -n "${KEPT_TAIL_START},${TOTAL_LINES_FILE}p" "$TOPIC_FILE"
+    } > "$KEPT_TMP"
+  else
+    sed -n "1,${KEPT_HEAD_END}p" "$TOPIC_FILE" > "$KEPT_TMP"
+  fi
 fi
 
 # ============================== shared: verify + commit ==============================
@@ -450,6 +540,9 @@ SHARD_LIST=$(IFS=,; echo "${SHARD_SIZES[*]}")
 
 echo "SCRIPT_OK"
 echo "GRANULARITY=$GRANULARITY"
+if [ "$GRANULARITY" = "prose" ]; then
+  echo "PROSE_DIRECTION=$PROSE_DIRECTION"
+fi
 echo "SHARD_FILES_WRITTEN: $SHARD_LIST"
 echo "BEFORE_BYTES=$BEFORE_BYTES"
 echo "AFTER_BYTES=$AFTER_BYTES"
