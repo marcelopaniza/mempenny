@@ -2,6 +2,26 @@
 
 All notable changes to MemPenny are documented here. This project follows [semantic versioning](https://semver.org/).
 
+## [1.6.0] — 2026-08-19
+
+Headline: an over-ceiling file with no reduction path stops being a dead end. Auto-split turns it into an INDEX whose items live on as verbatim PAGES — content-preserving, so it is safe even for in-flight files like `pending.md` that curate exempts by design. Born from a real failure: a live `pending.md` reached 337 KB with nothing in the toolbox allowed to touch it, silently taxing every session until a human intervened.
+
+### Auto-split — `/mempenny-memory-auto-split` + `hooks/auto-split.sh` (new)
+
+The content-preserving fallback for an over-ceiling topic file that no other strategy may reduce (`charter.md`/`pending.md` — curate-exempt by design — or a log-topic whose over-ceiling bulk is entirely the still-open period shard-roll never touches). The main file becomes an index; its items become pages the index points at. In the v1.4.0 "place with the model, move with a script" spirit, a deterministic script does all the moving — no model in the content path. Two strategies: **SUBJECT-INDEX** (the real `pending.md` shape — one page per subject/item, one index line per page) and **PROSE** (chronological paging that derives direction from the datestamps actually present in the file — never assumes newest-first). Collision-safe page naming walks past existing `-2`, `-3`, … suffixes. Verified by a 596-line deterministic suite: `tests/run-autosplit.sh`, 103 checks.
+
+### Wired into `/mempenny-clean`
+
+The clean flow now routes a file in that no-path corner to auto-split instead of leaving it to grow — the exact 337 KB failure mode, closed.
+
+### Field record
+
+This code split that same production memory directory before release: a 337 KB `pending.md` and an oversized `worklog.md` became index + pages in live use on 2026-08-17, with the index/pages layout adopted as the directory's standing convention afterwards.
+
+### Still open (carried honestly from 1.5.0)
+
+The shard-roll engine ↔ command unification remains the next piece of the sharding path: auto-split covers the no-other-path fallback, not the log-topic year-close that `/mempenny-memory-shard-roll` owns.
+
 ## [1.5.0] — 2026-07-29
 
 Headline: the README now tells the multi-AI story in plain language — one organized memory, shared by every AI you use — and a resolver fix makes the automatic part true: a slug bug had been silently keeping scheduled naps from firing and opencode from finding the shared memory directory. Under the hood, the adaptive sharding engine lands as hardened, standalone groundwork; wiring it into the commands is the next release.

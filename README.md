@@ -5,7 +5,7 @@
 **Memory hygiene for any AI coding agent — not a one-off clean. MemPenny organizes your memory, cleans out the stale, and keeps it that way.**
 
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.5.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.6.0-blue.svg)](CHANGELOG.md)
 [![Platform](https://img.shields.io/badge/platform-Claude%20Code%20%C2%B7%20opencode-orange.svg)](#install)
 [![Backups](https://img.shields.io/badge/backups-always%20first-yellow.svg)](SECURITY.md)
 [![Locales](https://img.shields.io/badge/locales-3%20languages-blue.svg)](locales/README.md)
@@ -13,7 +13,7 @@
 Your agent's memory grows. Old notes pile up and the signal gets buried. MemPenny doesn't just tidy once — it does three things:
 
 1. **Organize** — every note lands in a small, fixed set of topic files. A 3-level structure (one-line index → topic files → entries inside) keeps things from sprawling into hundreds of one-off notes; a cold agent finds anything in three file-opens.
-2. **Clean** — drop what's stale, archive the historical, distill the bloated to a line or two, kill duplicates, and flag files that contradict each other.
+2. **Clean** — drop what's stale, archive the historical, distill the bloated to a line or two, kill duplicates, split the over-grown into an index + pages, and flag files that contradict each other.
 3. **Keep it cleaned** — set a schedule (daily / weekly / once) and the next session opens on a tidy directory. Backup-first, fully reversible.
 
 ## How memory is organized
@@ -63,7 +63,7 @@ A real second-pass run on a real memory directory. Full case study: [docs/real-w
 
 ```bash
 git clone https://github.com/marcelopaniza/mempenny.git
-cd mempenny && git checkout v1.5.0
+cd mempenny && git checkout v1.6.0
 ./install/opencode.sh
 ```
 
@@ -115,6 +115,7 @@ MemPenny is tuned on Claude Sonnet/Opus and runs on GLM 4.6+, GPT-5, and Gemini 
 | `/mempenny-memory-distill` | Shrink one file to its load-bearing lines. |
 | `/mempenny-memory-curate` | Reduce a topic file entry-by-entry. |
 | `/mempenny-memory-shard-roll` | Close a finished year into a locked shard. |
+| `/mempenny-memory-auto-split` | Split an over-ceiling file into an index + verbatim pages. Content-preserving — the fallback when nothing else applies. |
 
 Claude Code uses the colon namespace (`/mempenny:clean`, etc.) — same commands, two spellings.
 
