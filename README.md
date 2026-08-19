@@ -130,7 +130,7 @@ Full threat model and every codenamed guard: [SECURITY.md](SECURITY.md).
 
 ## Advanced
 
-Full command reference, flags, config schema, the topic taxonomy, backup retention, localization, and how it all works under the hood: **[docs/advanced.md](docs/advanced.md)**.
+Full command reference, flags, config schema, the topic taxonomy, backup retention, localization, and how it all works under the hood: **[docs/advanced.md](docs/advanced.md)**. What's pending and why: **[docs/ROADMAP.md](docs/ROADMAP.md)**.
 
 ## License
 
