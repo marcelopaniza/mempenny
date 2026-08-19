@@ -35,9 +35,9 @@ Apply F-M2 + L1 exactly as the source specifies.
 Skip the `~/.claude/settings.json` → `autoMemoryEnabled` subroutine entirely; opencode has no equivalent.
 
 ### D. Where the schedule fires
-The source (nap.md) says the cleanup fires via a plugin-shipped `SessionStart` hook the next time you open Claude Code. On opencode the equivalent is the TS plugin at `.opencode/plugins/mempenny-nap.ts`, which subscribes to opencode's `session.created` event.
+The source (nap.md) says the cleanup fires via a plugin-shipped `SessionStart` hook the next time you open Claude Code. On opencode the equivalent is the TS plugin at `.opencode/plugins/mempenny-nap.ts`, which listens for opencode's `session.created` event (root sessions only) through the plugin API's generic `event` hook.
 
-**v1.2 is notify-only:** when a nap comes due, the plugin shows a desktop notification telling you to run `/mempenny-clean --yes`. It does not auto-invoke the cleanup (that is reserved for a future opencode SDK command-invoke path). So after scheduling, the next-time-you-open behavior is: you get notified, you run `/mempenny-clean --yes` yourself.
+**Notify is the default:** when a nap comes due, the plugin shows a desktop notification telling you to run `/mempenny-clean --yes`; nothing runs without you. **`"mode": "auto"` is an explicit opt-in:** with it set on the schedule entry, the plugin starts `/mempenny-clean --yes` in the new session itself (SDK `session.command`); a failed invoke falls back to the notification.
 
 ### E. Command namespace
 Sibling commands use the hyphen namespace: `/mempenny-clean`, `/mempenny-restore`, `/mempenny-memory-*`.
@@ -45,4 +45,4 @@ Sibling commands use the hyphen namespace: `/mempenny-clean`, `/mempenny-restore
 ### nap-specific notes
 - `--cancel` / `--list` / `--dir` / `--lang` parse from `$ARGUMENTS` per the source Step 1.
 - The schedule row you write (`frequency`, `time`) is read by `mempenny-nap.ts` verbatim — keep the same field names and the `daily|weekly|once` + `HH:MM` formats the source specifies.
-- An optional `mode` field is read by the plugin (`"notify"` default; `"auto"` reserved for future). Do not advertise `auto` to the user yet.
+- An optional `mode` field is read by the plugin (`"notify"` default; `"auto"` = start the clean automatically). This command's flow never writes `mode` — if the user asks for auto-invoke, tell them to add `"mode": "auto"` to the schedule entry in the config file themselves (explicit opt-in by design).

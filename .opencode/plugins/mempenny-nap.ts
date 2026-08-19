@@ -1,16 +1,19 @@
 // MemPenny — opencode nap scheduler.
 //
-// TS port of hooks/nap-check.sh. Subscribes to opencode's `session.created`
-// event and, when a scheduled nap is due for the current project's memory dir,
-// fires a desktop notification pointing the user at /mempenny-clean --yes.
+// TS port of hooks/nap-check.sh. Listens for opencode's `session.created`
+// event (delivered through the plugin API's single generic `event` hook —
+// opencode never dispatches per-event-name keys, so the hook below MUST stay
+// keyed `event`, not `"session.created"`) and, when a scheduled nap is due
+// for the current project's memory dir, acts per the schedule's `mode`:
 //
-// v1.2 is notify-only by design. The Claude side nudges the model via
-// hookSpecificOutput.additionalContext; opencode's session events have no
-// equivalent context-injection path (verified against the plugin docs), and
-// auto-invoking a destructive cleanup on every session start without a prompt
-// is a consent/correctness risk we will not ship silently. `nap.mode: "auto"`
-// is read and reserved for a future v1.3 once a verified SDK command-invoke
-// path exists; today it falls back to notify with a log line.
+//   - "notify" (default): fire a desktop notification pointing the user at
+//     /mempenny-clean --yes. Nothing runs without them.
+//   - "auto" (explicit config opt-in, never written by /mempenny-nap itself):
+//     start the cleanup by sending the `mempenny-clean` command into the new
+//     session via `client.session.command` — a plain, non-experimental SDK
+//     call that starts a turn on this session and never preempts a running
+//     one. Falls back to notify if the invoke fails. The cleanup itself keeps
+//     every safety rail (--yes skips only the confirm gate; backup-first).
 //
 // Defensive by design — a broken hook MUST NOT block session start: the whole
 // handler is wrapped so any throw is swallowed (mirrors the bash `|| exit 0`).
@@ -72,8 +75,18 @@ function isDue(frequency: Frequency, last: string, today: string): boolean {
 
 export const MemPennyNap: Plugin = async ({ client, $, directory }) => {
   return {
-    "session.created": async () => {
+    event: async ({ event }) => {
       try {
+        if (event.type !== "session.created") return
+
+        // Root project sessions only: a subagent/Task child session (parentID
+        // set) must not re-trigger the nap check — mempenny's own clean spawns
+        // subagents, and a nap firing inside its own cleanup would be absurd.
+        const info = (
+          event as { properties?: { info?: { id?: string; parentID?: string | null } } }
+        ).properties?.info
+        if (info?.parentID) return
+
         const projectDir = directory ?? process.cwd?.() ?? ""
         if (!projectDir) return
 
@@ -122,18 +135,36 @@ export const MemPennyNap: Plugin = async ({ client, $, directory }) => {
         // Time gate: only fire at/after the scheduled HH:MM today (lexicographic).
         if (localHhmm() < time) return
 
-        // All checks passed — record the fire BEFORE notifying, so a notifier
-        // failure can't cause a retry storm on the next session.
+        // All checks passed — record the fire BEFORE acting, so a notifier or
+        // invoke failure can't cause a retry storm on the next session.
         try {
           writeFileSync(stateFile, today, { mode: 0o600 })
         } catch {
           return
         }
 
-        const message =
-          `nap is due (scheduled ${frequency} at ${time}). ` +
-          `Run /mempenny-clean --yes to tidy this project's memory. ` +
-          `Backup-first; /mempenny-restore reverses any pass.`
+        // mode "auto" (explicit opt-in in the config): start the cleanup in
+        // this new session. session.command resolves the mempenny-clean
+        // command file and starts a turn; it never preempts a running one.
+        let autoInvoked = false
+        if (schedule?.mode === "auto" && info?.id) {
+          try {
+            await client.session.command({
+              path: { id: info.id },
+              body: { command: "mempenny-clean", arguments: "--yes" },
+            })
+            autoInvoked = true
+          } catch {
+            autoInvoked = false // fall through to the notify message below.
+          }
+        }
+
+        const message = autoInvoked
+          ? `nap: running /mempenny-clean --yes now (scheduled ${frequency} at ${time}). ` +
+            `Backup-first; /mempenny-restore reverses any pass.`
+          : `nap is due (scheduled ${frequency} at ${time}). ` +
+            `Run /mempenny-clean --yes to tidy this project's memory. ` +
+            `Backup-first; /mempenny-restore reverses any pass.`
 
         // Desktop notification. Bun's `$` parameterizes substitutions, so the
         // message is passed as a single arg (no shell injection). No-op on
@@ -144,22 +175,13 @@ export const MemPennyNap: Plugin = async ({ client, $, directory }) => {
           await $`notify-send ${"MemPenny"} ${message}`
         }
 
-        // v1.2: notify only. nap.mode "auto" is reserved for v1.3 pending a
-        // verified SDK command-invoke path; until then it falls back to notify.
-        if (schedule?.mode === "auto") {
-          await client.app.log({
-            body: {
-              service: "mempenny-nap",
-              level: "warn",
-              message: `nap.mode=auto not implemented in v1.2 for ${sha1_12(memDir)}; notified instead`,
-            },
-          })
-        }
         await client.app.log({
           body: {
             service: "mempenny-nap",
             level: "info",
-            message: `nap fired for ${sha1_12(memDir)} (${frequency})`, // PENT-6: hash, not the path.
+            message: `nap fired for ${sha1_12(memDir)} (${frequency}, ${
+              autoInvoked ? "auto-invoked" : "notified"
+            })`, // PENT-6: hash, not the path.
           },
         })
       } catch {
