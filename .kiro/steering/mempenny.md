@@ -7,6 +7,9 @@ inclusion: always
 
 Your AI's memory directory grows over time; old notes bury the signal. MemPenny tidies it — drops the stale, archives the historical, distills the verbose to a line or two, and keeps the rest in a small fixed set of topic files. Backup-first, always reversible.
 
+## Where the memory lives
+Default: Claude Code's auto-memory layout — `~/.claude/projects/<project-slug>/memory/`, where `<project-slug>` is the project's absolute path with every `/` replaced by `-` (`/home/you/app` → `~/.claude/projects/-home-you-app/memory/`). If your host doesn't resolve this automatically, tell the agent where the memory directory is — this path, or wherever yours lives — before asking it to read or tidy anything.
+
 ## Strategy hierarchy (cheapest action first)
 1. **DELETE** — truly obsolete: the fix is in the code; a one-shot bug; marked "RESOLVED"/"do not re-fix"; superseded by a newer file.
 2. **ARCHIVE** — completed-but-non-trivial: move to `archive/`, drop from the `MEMORY.md` index. Still searchable, out of the auto-load path.

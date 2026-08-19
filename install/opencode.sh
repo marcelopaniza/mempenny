@@ -84,7 +84,7 @@ echo "Restart opencode to load MemPenny."
 echo "Commands: /mempenny-clean, /mempenny-nap, /mempenny-restore,"
 echo "          /mempenny-memory-triage, /mempenny-memory-apply,"
 echo "          /mempenny-memory-distill, /mempenny-memory-curate,"
-echo "          /mempenny-memory-shard-roll"
+echo "          /mempenny-memory-shard-roll, /mempenny-memory-auto-split"
 echo
 echo "If you also run Claude Code in this project, mempenny shares the same"
 echo "memory dir + config (~/.claude/mempenny.config.json) automatically."
