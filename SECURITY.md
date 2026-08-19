@@ -54,7 +54,7 @@ The `.opencode/` layer adds a second host. The Claude Code threat model above st
 - **Env-var namespace (no `CLAUDE_*` collision).** The env shim (`mempenny-env.ts`) injects only `MEMPENNY_HOST` / `MEMPENNY_ROOT` / `MEMPENNY_DATA_DIR` via the `shell.env` hook. It deliberately does **not** set `CLAUDE_PROJECT_DIR` / `CLAUDE_PLUGIN_ROOT` / `CLAUDE_PLUGIN_DATA` — those are left to a real Claude Code process. The command adapters instruct the model to substitute the references at read time, so a machine running both hosts cannot have one host's env vars override the other's.
 - **Install is clone-and-run, not `curl | bash`.** `install/opencode.sh` copies the host-agnostic tree into `~/.local/share/mempenny` as a **stable snapshot** and symlinks only the opencode-discovery files (commands + plugins) from `~/.config/opencode/` at that snapshot. The symlinks never point at a live git checkout, so a compromised upstream or `git pull` cannot silently change executed code — updates require re-running the installer.
 - **TS plugins re-run every path guard.** `.opencode/plugins/_paths.ts` ports C1 (path regex), H1 (filename regex), and F-M2 (symlink refusal) into TypeScript. `mempenny-nap.ts` validates every path through it before any `readFileSync` / `writeFileSync` / `mkdirSync`; no filesystem call happens on an unvalidated or symlinked path.
-- **Nap is notify-only.** `session.created` fires a desktop notification pointing the user at `/mempenny-clean --yes`; it does **not** auto-invoke a destructive cleanup. Auto-invoke is reserved for a future release behind an explicit `nap.mode: "auto"` opt-in, so a scheduled nap cannot run a destructive operation without a prompt in v1.2.
+- **Nap defaults to notify.** A due nap fires a desktop notification pointing the user at `/mempenny-clean --yes`; nothing runs without them. Auto-invoke exists only behind an explicit `"mode": "auto"` on the schedule entry — a value `/mempenny-nap` never writes; the user must hand-edit the config to opt in. Auto mode starts `/mempenny-clean --yes` via the SDK's `session.command`: `--yes` skips only the confirm gate, so backup-first, conservation, and every other guard still run, and `/mempenny-restore` reverses the pass.
 - **Permissions.** The installer tightens the snapshot (dirs `700`, `*.json` `600`); the nap plugin writes its state file `0o600`.
 - **No path leakage in logs.** The nap plugin logs the `sha1-12` hash of the memory directory, not the path itself.
 
@@ -69,6 +69,38 @@ Two additions that reduce per-run friction **without** weakening the safety mode
 
 ## multi-host adapter files (added in v1.3)
 
-v1.3 adds the per-host adapter files other agents expect: plugin manifests (`.codex-plugin/plugin.json`, `gemini-extension.json`, `.devin-plugin/plugin.json`, `plugin.yaml`, `.agents/plugins/marketplace.json`), rules files (`.cursor/rules/mempenny.mdc`, `.windsurf/rules/mempenny.md`, `.clinerules/mempenny.md`, `.kiro/steering/mempenny.md`, `.github/copilot-instructions.md`, `.agents/rules/mempenny.md`), and a skill (`.openclaw/skills/mempenny/SKILL.md`).
+v1.3 adds the per-host adapter files other agents expect: plugin manifests (`.codex-plugin/plugin.json`, `gemini-extension.json`, `.devin-plugin/plugin.json`, `plugin.yaml`, `.agents/plugins/marketplace.json`), rules files (`.cursor/rules/mempenny.mdc`, `.devin/rules/mempenny.md`, `.windsurf/rules/mempenny.md`, `.clinerules/mempenny.md`, `.kiro/steering/mempenny.md`, `.github/copilot-instructions.md`, `.agents/rules/mempenny.md`), and skills (`.agents/skills/mempenny/SKILL.md`, `.openclaw/skills/mempenny/SKILL.md`).
 
-All of these are **passive** — either a JSON/YAML manifest pointing the host at `AGENTS.md`, or markdown text the host reads. None introduce executable surface, hooks, or code on their target hosts; the rules content is a compact distillation of `AGENTS.md` and reiterates the same guards (backup-first, conservation, path/filename validation, untrusted file bodies, off-limits markers). The rules-only tier relies on the model following that documented discipline; it cannot enforce the way the installed commands on Claude Code / opencode do. Formats were verified against a working reference (the ponytail plugin's shipped adapters), not guessed.
+With one deliberate exception — the nap hook that Gemini and Codex now load, next section — all of these are **passive**: either a JSON/YAML manifest pointing the host at `AGENTS.md`, or markdown text the host reads. They introduce no executable surface, hooks, or code on their target hosts; the rules content is a compact distillation of `AGENTS.md` and reiterates the same guards (backup-first, conservation, path/filename validation, untrusted file bodies, off-limits markers). The rules-only tier relies on the model following that documented discipline; it cannot enforce the way the installed commands on Claude Code / opencode do. Formats were verified against a working reference (the ponytail plugin's shipped adapters), not guessed.
+
+## Gemini / Codex nap hook (added in v1.7)
+
+Gemini CLI (extensions, since v0.26.0) and Codex CLI (plugins, hooks stable
+since v0.124.0) both load a plugin-shipped `hooks/hooks.json` and both adopted
+Claude Code's `SessionStart` contract — so the **same** `hooks/nap-check.sh`
+Claude Code has always run now also runs on those two hosts. What that surface
+is, exactly:
+
+- **What executes:** one short bash script per session start. It reads the
+  shared config and its own state file, and — when a nap is due — writes one
+  state file (`0600`, C1-validated path) and prints one JSON nudge to stdout.
+  It never reads or writes memory files, never touches the network, and every
+  failing step exits silently (`|| exit 0`) so a broken hook cannot block
+  session start.
+- **Host selection is guarded, not guessed.** Each of the three entries in
+  `hooks/hooks.json` runs only when env vars specific to its host are present
+  (`CLAUDE_PLUGIN_ROOT` without `PLUGIN_ROOT` → Claude; `PLUGIN_ROOT` → Codex;
+  `GEMINI_SESSION_ID` → Gemini), so every host executes exactly one real check
+  and the other entries are silent no-ops. Covered by
+  `tests/run-napcheck.sh`'s guard matrix.
+- **Consent-first on the rules-only tier.** On Gemini/Codex the nudge asks the
+  model to *tell the user* a nap is due and *offer* the manual cleanup — it
+  does not instruct an unattended run (that stays Claude-Code-only, where
+  `/mempenny:clean --yes` still runs backup-first with the full guard set).
+- **Both hosts gate the hook on user approval.** Gemini shows a consent prompt
+  at `gemini extensions install`; Codex refuses to run plugin hooks at all
+  until the user reviews and trusts the exact hook definition via `/hooks`,
+  and re-prompts if the hook's command line ever changes.
+- **State is per-host** (`nap-gemini-*` / `nap-codex-*` under
+  `~/.local/share/mempenny/`), recorded *before* the nudge is emitted, so a
+  failure downstream cannot cause a retry storm.

@@ -2,6 +2,30 @@
 
 All notable changes to MemPenny are documented here. This project follows [semantic versioning](https://semver.org/).
 
+## [1.7.0] — 2026-08-19
+
+Headline: the scheduled nap goes multi-host. Gemini CLI and Codex CLI both adopted Claude Code's hook shape — same `hooks/hooks.json` discovery inside an extension/plugin, same `SessionStart` event, same `hookSpecificOutput.additionalContext` output, even `CLAUDE_*` compatibility env vars — so the hook MemPenny already ships now rides its existing Gemini extension and Codex plugin, and reminds you, consent-first, when a nap is due. Plus an honest fix: the opencode nap never actually fired — its plugin listened on a hook key opencode never dispatches. It now listens correctly, and gains an explicit opt-in auto mode built on a now-verified SDK call.
+
+### Nap reminder on Gemini + Codex — shared `hooks/hooks.json` + host-aware `hooks/nap-check.sh`
+
+All three hosts auto-load the same `hooks/hooks.json`, so it now carries three guarded entries — each guards on env vars only its own host sets (`CLAUDE_PLUGIN_ROOT` without `PLUGIN_ROOT` → Claude; `PLUGIN_ROOT` → Codex; `GEMINI_SESSION_ID` → Gemini), so every host runs exactly one real check and the others no-op silently; timeout units are per-host (Claude/Codex seconds, Gemini milliseconds). `nap-check.sh` gained a `MEMPENNY_HOST` mode: identical due-ness logic and guards everywhere, with a per-host project-dir source (Gemini's `GEMINI_PROJECT_DIR`/compat alias; Codex's session cwd), per-host state files (`nap-gemini-*` / `nap-codex-*` under `~/.local/share/mempenny/` — each host reminds independently, at most once per due period), and a per-host nudge: Claude Code keeps the automated `/mempenny:clean --yes`; Gemini and Codex — rules-only hosts — get a consent-first reminder that offers the manual tidy per `AGENTS.md` (Gemini has it in context via the extension) or the memory-hygiene skill (Codex). Codex requires a one-time `/hooks` trust of plugin hooks — documented in the README install table and the compat doc. New deterministic suite: `tests/run-napcheck.sh` (25 checks, including a host×entry guard matrix). `SECURITY.md` documents the new executable surface and both hosts' consent gates.
+
+### Fixed — the opencode nap never fired
+
+`.opencode/plugins/mempenny-nap.ts` returned its handler under a `"session.created"` key; opencode only dispatches session events through the plugin API's single generic `event` hook, so the handler was inert and scheduled naps on opencode produced nothing — found while re-verifying the host matrix against opencode's actual dispatch source. The plugin now subscribes via `event`, filters `session.created`, and acts on root sessions only, so a Task-spawned child session (including mempenny's own cleanup subagents) can never re-trigger the check.
+
+### opencode nap auto mode — `"mode": "auto"`, explicit opt-in
+
+The v1.2 reservation is closed: `client.session.command` is a plain, non-experimental SDK call (verified against opencode's server source: it starts a turn in the target session, never preempts a running one, and works headless). With `"mode": "auto"` hand-added to a schedule entry, a due nap starts `/mempenny-clean --yes` in the new session itself; notify stays the default, `/mempenny-nap` never writes `mode`, and a failed invoke falls back to the desktop notification. Dependency pin resolved along the way: `@opencode-ai/plugin ^1.18.18` (plugin + SDK types byte-identical from 1.17.x, verified by tarball diff).
+
+### v1.6.0 stragglers closed
+
+The auto-split release missed its own adapter surfaces: `.opencode/commands/mempenny-memory-auto-split.md` did not exist (the command was uninvokable on opencode), the opencode clean adapter's sibling-command list, `docs/advanced.md` (topic-organization bullets, manual-phases list, how-it-works), the installer's printed command list, and `plugin.yaml` (still 1.5.0 and missing the new command).
+
+### Host refresh — 2026-08 sweep across every adapter
+
+Windsurf is now Devin Desktop, so the rules also ship at `.devin/rules/mempenny.md` (the preferred current path; `.windsurf/rules/` is kept as the documented legacy fallback). The OpenClaw skill also ships at `.agents/skills/mempenny/SKILL.md` — the Agent Skills standard path that current OpenClaw discovers and Devin skills share. All seven distilled rules copies now carry AGENTS.md's "where the memory lives" pointer. README and the compat doc now say which hosts read `AGENTS.md` natively (Cursor, Devin Desktop, Cline, Kiro, Copilot, Devin, Hermes), and the compat matrix notes Devin plugins' closed-beta status and Hermes's real install location. ROADMAP: the nap port and opencode auto-invoke items are closed; a wave-2 list of further hook-capable hosts is recorded with evidence links.
+
 ## [1.6.0] — 2026-08-19
 
 Headline: an over-ceiling file with no reduction path stops being a dead end. Auto-split turns it into an INDEX whose items live on as verbatim PAGES — content-preserving, so it is safe even for in-flight files like `pending.md` that curate exempts by design. Born from a real failure: a live `pending.md` reached 337 KB with nothing in the toolbox allowed to touch it, silently taxing every session until a human intervened.
