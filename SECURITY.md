@@ -101,6 +101,7 @@ is, exactly:
   at `gemini extensions install`; Codex refuses to run plugin hooks at all
   until the user reviews and trusts the exact hook definition via `/hooks`,
   and re-prompts if the hook's command line ever changes.
-- **State is per-host** (`nap-gemini-*` / `nap-codex-*` under
+- **State is per-host** (`nap-gemini-*` under `~/.local/share/mempenny/`;
+  `nap-codex-*` under Codex's native `PLUGIN_DATA` directory, falling back to
   `~/.local/share/mempenny/`), recorded *before* the nudge is emitted, so a
   failure downstream cannot cause a retry storm.

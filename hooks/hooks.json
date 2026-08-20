@@ -5,17 +5,15 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if [ -n \"${CLAUDE_PLUGIN_ROOT:-}\" ] && [ -z \"${PLUGIN_ROOT:-}\" ]; then \"${CLAUDE_PLUGIN_ROOT}/hooks/nap-check.sh\"; fi",
-            "timeout": 10
+            "command": "if [ -n \"${CLAUDE_PLUGIN_ROOT:-}\" ] && [ -x \"${CLAUDE_PLUGIN_ROOT}/hooks/nap-check.sh\" ]; then \"${CLAUDE_PLUGIN_ROOT}/hooks/nap-check.sh\"; fi"
           },
           {
             "type": "command",
-            "command": "if [ -n \"${PLUGIN_ROOT:-}\" ]; then MEMPENNY_HOST=codex \"${PLUGIN_ROOT}/hooks/nap-check.sh\"; fi",
-            "timeout": 10
+            "command": "if [ -n \"${PLUGIN_ROOT:-}\" ] && [ -x \"${PLUGIN_ROOT}/hooks/nap-check.sh\" ]; then MEMPENNY_HOST=codex \"${PLUGIN_ROOT}/hooks/nap-check.sh\"; fi"
           },
           {
             "type": "command",
-            "command": "if [ -n \"${GEMINI_SESSION_ID:-}\" ]; then MEMPENNY_HOST=gemini \"${extensionPath}/hooks/nap-check.sh\"; fi",
+            "command": "if [ -n \"${GEMINI_SESSION_ID:-}\" ] && [ -x \"${extensionPath}/hooks/nap-check.sh\" ]; then MEMPENNY_HOST=gemini \"${extensionPath}/hooks/nap-check.sh\"; fi",
             "timeout": 10000
           }
         ]

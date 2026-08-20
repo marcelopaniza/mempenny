@@ -20,7 +20,7 @@ These are independent:
 | **Claude Code** | Full | ✅ | ✅ auto | `.claude-plugin/` (reference). Commands: `/mempenny:clean` (colon). |
 | **opencode** | Full | ✅ | ✅ notify · opt-in auto | `.opencode/` (env shim + nap plugin + thin adapters). Commands: `/mempenny-clean` (hyphen). Shares the memory dir + config with Claude Code. |
 | **Codex** | Rules + nap | via `AGENTS.md` / skill | 🔔 reminder | `.codex-plugin/plugin.json` manifest + plugin-shipped nap hook (`hooks/hooks.json`; trust it once via `/hooks`). Installable via `codex plugin marketplace add`. |
-| **Gemini / Antigravity** | Rules + nap | via `AGENTS.md` | 🔔 reminder | `gemini-extension.json` (`contextFileName: AGENTS.md`) + extension-shipped nap hook (`hooks/hooks.json`). `gemini extensions install <repo>`. |
+| **Gemini / Antigravity** | Rules + nap | via `AGENTS.md` | 🔔 reminder | `gemini-extension.json` (`contextFileName: AGENTS.md`) + extension-shipped nap hook (`hooks/hooks.json`). `gemini extensions install <repo>`. Reminder verified against Gemini CLI's hook docs; untested on Antigravity. |
 | **Devin** | Rules-only | via `AGENTS.md` | — | `.devin-plugin/plugin.json` manifest (Devin plugins are in closed beta; Devin also reads `AGENTS.md` natively). Skill also discoverable at `.agents/skills/mempenny/`. |
 | **Hermes** | Rules-only | via `AGENTS.md` | — | `plugin.yaml` (the installer places it under `~/.hermes/plugins/mempenny/`). Hermes also reads `AGENTS.md` natively. |
 | **Cursor** | Rules-only | copy rules file | — | `.cursor/rules/mempenny.mdc`. Current Cursor also reads `AGENTS.md` natively. |
@@ -79,9 +79,14 @@ Mechanics shared by all of it: the three host entries live in one
 `hooks/hooks.json` (each entry guards on env vars only its own host sets, so
 every host runs exactly one real check); `hooks/nap-check.sh` needs `jq` on
 PATH and skips silently without it; each host keeps its own last-fired state
-(Claude under `~/.claude/data/mempenny/`, Gemini/Codex host-prefixed under
-`~/.local/share/mempenny/`), so each host reminds independently at most once
-per due period. Deterministic coverage: `tests/run-napcheck.sh`.
+(Claude under `~/.claude/data/mempenny/`; Gemini host-prefixed under
+`~/.local/share/mempenny/`; Codex host-prefixed under its native plugin-data
+directory — Codex always provides `PLUGIN_DATA` to plugin hooks, so
+`~/.local/share/mempenny/` is only its fallback), so each host reminds
+independently, at most once per due period. That per-host independence also
+applies to `frequency: "once"`: a once-nap fires once **per host**, not once
+globally — cancel the schedule after it has served its purpose if you run
+several hosts on one project. Deterministic coverage: `tests/run-napcheck.sh`.
 
 ## Model matrix
 

@@ -112,11 +112,31 @@ out=$(run_nap MEMPENNY_HOST=gemini GEMINI_PROJECT_DIR="$PROJ" MEMPENNY_DATA_DIR=
 echo "$out" | grep -q "rules-only" \
     && ok "MEMPENNY_CONFIG_PATH override honored" || bad "config override not honored"
 
+# Unpadded hand-edited hour must still fire ("0:00" is always past once padded).
+jq -n --arg dir "$REAL_MEMDIR" \
+  '{version: 2, memory_dirs: {}, schedules: {($dir): {frequency: "daily", time: "0:00"}}}' \
+  > "$ALT_CFG"
+out=$(run_nap MEMPENNY_HOST=gemini GEMINI_PROJECT_DIR="$PROJ" MEMPENNY_DATA_DIR="$SANDBOX/g7" MEMPENNY_CONFIG_PATH="$ALT_CFG")
+echo "$out" | grep -q "rules-only" \
+    && ok "unpadded schedule hour is normalized and fires" || bad "unpadded hour did not fire"
+
+# Weekly with a 10-day-old last-fire must fire again.
+H12="$(echo -n "$REAL_MEMDIR" | sha1sum | cut -c1-12)"
+mkdir -p "$SANDBOX/g8"
+date -d '-10 days' +%Y-%m-%d > "$SANDBOX/g8/nap-gemini-$H12.last"
+jq -n --arg dir "$REAL_MEMDIR" \
+  '{version: 2, memory_dirs: {}, schedules: {($dir): {frequency: "weekly", time: "00:00"}}}' \
+  > "$ALT_CFG"
+out=$(run_nap MEMPENNY_HOST=gemini GEMINI_PROJECT_DIR="$PROJ" MEMPENNY_DATA_DIR="$SANDBOX/g8" MEMPENNY_CONFIG_PATH="$ALT_CFG")
+echo "$out" | grep -q "rules-only" \
+    && ok "weekly fires again after 10 days" || bad "weekly did not re-fire after 10 days"
+
 # Time gate: a schedule 2 minutes in the future must not fire (skipped in the
-# minutes right before midnight, where +2min wraps to a past lexicographic time).
-FUTURE="$(date -d '+2 minutes' +%H:%M)"
+# minutes right before midnight, where +2min wraps to a past lexicographic
+# time, or where date lacks both the GNU and BSD relative syntax).
+FUTURE="$(date -d '+2 minutes' +%H:%M 2>/dev/null || date -v +2M +%H:%M 2>/dev/null || echo "")"
 NOW="$(date +%H:%M)"
-if [[ "$FUTURE" > "$NOW" ]]; then
+if [ -n "$FUTURE" ] && [[ "$FUTURE" > "$NOW" ]]; then
     jq -n --arg dir "$REAL_MEMDIR" --arg t "$FUTURE" \
       '{version: 2, memory_dirs: {}, schedules: {($dir): {frequency: "daily", time: $t}}}' \
       > "$ALT_CFG"
@@ -164,6 +184,23 @@ for host in claude codex gemini; do
         fi
     done
 done
+
+# --- 6. stray-env regressions ----------------------------------------------
+# A stray generic env var from an unrelated tool must not disable or misroute
+# the check: entry 0 still fires on Claude with a bogus PLUGIN_ROOT exported,
+# and the foreign entries' existence-checked guards keep them silent.
+out=$(run_entry 0 CLAUDE_PLUGIN_ROOT="$ROOT" CLAUDE_PROJECT_DIR="$PROJ" CLAUDE_PLUGIN_DATA="$SANDBOX/stray-claude" PLUGIN_ROOT=/nonexistent)
+echo "$out" | jq -e '.hookSpecificOutput.additionalContext | length > 0' >/dev/null 2>&1 \
+    && ok "stray PLUGIN_ROOT does not kill the Claude entry" \
+    || bad "stray PLUGIN_ROOT killed the Claude entry — got: ${out:-<empty>}"
+out=$(run_entry 1 CLAUDE_PLUGIN_ROOT="$ROOT" CLAUDE_PROJECT_DIR="$PROJ" CLAUDE_PLUGIN_DATA="$SANDBOX/stray-claude" PLUGIN_ROOT=/nonexistent)
+[ -z "$out" ] \
+    && ok "codex entry stays silent under a bogus PLUGIN_ROOT" \
+    || bad "codex entry leaked output under bogus PLUGIN_ROOT: $out"
+out=$(run_entry 2 CLAUDE_PLUGIN_ROOT="$ROOT" CLAUDE_PROJECT_DIR="$PROJ" GEMINI_SESSION_ID=stray)
+[ -z "$out" ] \
+    && ok "gemini entry stays silent under a stray GEMINI_SESSION_ID" \
+    || bad "gemini entry leaked output under stray GEMINI_SESSION_ID: $out"
 
 echo
 echo "checked=$checked  failed=$fail"
