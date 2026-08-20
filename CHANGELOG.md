@@ -2,7 +2,7 @@
 
 All notable changes to MemPenny are documented here. This project follows [semantic versioning](https://semver.org/).
 
-## [1.7.0] — 2026-08-19
+## [1.7.0] — 2026-08-20
 
 Headline: the scheduled nap goes multi-host. Gemini CLI and Codex CLI both adopted Claude Code's hook shape — same `hooks/hooks.json` discovery inside an extension/plugin, same `SessionStart` event, same `hookSpecificOutput.additionalContext` output, even `CLAUDE_*` compatibility env vars — so the hook MemPenny already ships now rides its existing Gemini extension and Codex plugin, and reminds you, consent-first, when a nap is due. Plus an honest fix: the opencode nap never actually fired — its plugin listened on a hook key opencode never dispatches. It now listens correctly, and gains an explicit opt-in auto mode built on a now-verified SDK call.
 
@@ -24,7 +24,7 @@ The auto-split release missed its own adapter surfaces: `.opencode/commands/memp
 
 ### Host refresh — 2026-08 sweep across every adapter
 
-Windsurf is now Devin Desktop, so the rules also ship at `.devin/rules/mempenny.md` (the preferred current path; `.windsurf/rules/` is kept as the documented legacy fallback). The OpenClaw skill also ships at `.agents/skills/mempenny/SKILL.md` — the Agent Skills standard path that current OpenClaw discovers and Devin skills share. All seven distilled rules copies now carry AGENTS.md's "where the memory lives" pointer. README and the compat doc now say which hosts read `AGENTS.md` natively (Cursor, Devin Desktop, Cline, Kiro, Copilot, Devin, Hermes), and the compat matrix notes Devin plugins' closed-beta status and Hermes's real install location. ROADMAP: the nap port and opencode auto-invoke items are closed; a wave-2 list of further hook-capable hosts is recorded with evidence links.
+Windsurf is now Devin Desktop, so the rules also ship at `.devin/rules/mempenny.md` (the preferred current path; `.windsurf/rules/` is kept as the documented legacy fallback). The OpenClaw skill also ships at `.agents/skills/mempenny/SKILL.md` — the Agent Skills standard path that current OpenClaw discovers and Devin skills share. All seven distilled rules copies now carry AGENTS.md's "where the memory lives" pointer. README and the compat doc now say which hosts read `AGENTS.md` natively (Cursor, Devin Desktop, Cline, Kiro, Copilot, Devin, Hermes), and the compat matrix notes Devin plugins' closed-beta status and Hermes's real install location. ROADMAP: the nap port and opencode auto-invoke items are closed; a wave-2 list of further hook-capable hosts is recorded with evidence links. The tagline is repositioned around the shareable-memory differentiator — "One memory, every AI. Shared memory management for all your coding agents — organized, lean, and reversible." — aligned across the GitHub About box, the Claude plugin + marketplace manifests, and the README intro.
 
 ## [1.6.0] — 2026-08-19
 
