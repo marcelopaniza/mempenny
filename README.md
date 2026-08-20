@@ -2,10 +2,10 @@
 
 <p align="center"><img src="docs/mempenny-banner.svg" alt="MemPenny — memory hygiene for AI coding agents" width="880"></p>
 
-**Memory hygiene for any AI coding agent — not a one-off clean. MemPenny organizes your memory, cleans out the stale, and keeps it that way.**
+**One memory, every AI. Shared memory management for all your coding agents — organized, lean, and reversible.**
 
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.6.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.7.0-blue.svg)](CHANGELOG.md)
 [![Platform](https://img.shields.io/badge/platform-Claude%20Code%20%C2%B7%20opencode-orange.svg)](#install)
 [![Backups](https://img.shields.io/badge/backups-always%20first-yellow.svg)](SECURITY.md)
 [![Locales](https://img.shields.io/badge/locales-3%20languages-blue.svg)](locales/README.md)
@@ -63,7 +63,7 @@ A real second-pass run on a real memory directory. Full case study: [docs/real-w
 
 ```bash
 git clone https://github.com/marcelopaniza/mempenny.git
-cd mempenny && git checkout v1.6.0
+cd mempenny && git checkout v1.7.0
 ./install/opencode.sh
 ```
 
