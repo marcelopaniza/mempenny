@@ -15,14 +15,11 @@ echo "  data dir:   $DATA_DIR"
 echo "  opencode:   $OC_ROOT"
 echo
 
-# 1. Remove only our command + plugin symlinks. We delete by basename, and only
-#    if the target is inside DATA_DIR (so a user's same-named file is never hit).
-for name in \
-    mempenny-clean.md mempenny-nap.md mempenny-restore.md \
-    mempenny-memory-triage.md mempenny-memory-apply.md \
-    mempenny-memory-distill.md mempenny-memory-curate.md \
-    mempenny-memory-shard-roll.md; do
-    link="$OC_ROOT/commands/$name"
+# 1. Remove only our command + plugin symlinks. We glob mempenny-*.md (the
+#    installer symlinks by the same glob, so a hardcoded name list can't drift
+#    when commands are added) and only delete a link whose target is inside
+#    DATA_DIR (so a user's same-named file is never hit).
+for link in "$OC_ROOT"/commands/mempenny-*.md; do
     if [ -L "$link" ]; then
         case "$(readlink "$link")" in
             "$DATA_DIR"/*) rm -f "$link" ;;

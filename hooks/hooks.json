@@ -2,12 +2,19 @@
   "hooks": {
     "SessionStart": [
       {
-        "matcher": "",
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/nap-check.sh",
-            "timeout": 10
+            "command": "if [ -n \"${CLAUDE_PLUGIN_ROOT:-}\" ] && [ -x \"${CLAUDE_PLUGIN_ROOT}/hooks/nap-check.sh\" ]; then \"${CLAUDE_PLUGIN_ROOT}/hooks/nap-check.sh\"; fi"
+          },
+          {
+            "type": "command",
+            "command": "if [ -n \"${PLUGIN_ROOT:-}\" ] && [ -x \"${PLUGIN_ROOT}/hooks/nap-check.sh\" ]; then MEMPENNY_HOST=codex \"${PLUGIN_ROOT}/hooks/nap-check.sh\"; fi"
+          },
+          {
+            "type": "command",
+            "command": "if [ -n \"${GEMINI_SESSION_ID:-}\" ] && [ -x \"${extensionPath}/hooks/nap-check.sh\" ]; then MEMPENNY_HOST=gemini \"${extensionPath}/hooks/nap-check.sh\"; fi",
+            "timeout": 10000
           }
         ]
       }

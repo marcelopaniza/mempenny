@@ -41,7 +41,7 @@ The source spawns subagents with Claude Code syntax. Use opencode's Task tool in
 - Leave `model` unset (inherit the host model) unless the user exported `MEMPENNY_TRIAGE_MODEL`, in which case pass that value as `model`.
 
 ### E. Command namespace
-opencode uses the hyphen namespace. The sibling commands are `/mempenny-nap`, `/mempenny-restore`, `/mempenny-memory-triage`, `/mempenny-memory-apply`, `/mempenny-memory-distill`, `/mempenny-memory-curate`, `/mempenny-memory-shard-roll`.
+opencode uses the hyphen namespace. The sibling commands are `/mempenny-nap`, `/mempenny-restore`, `/mempenny-memory-triage`, `/mempenny-memory-apply`, `/mempenny-memory-distill`, `/mempenny-memory-curate`, `/mempenny-memory-shard-roll`, `/mempenny-memory-auto-split`.
 
 ### clean-specific notes
 - Arguments (`--dir`, `--only`, `--lang`, `--reconfigure`, `--yes`) parse from `$ARGUMENTS` exactly as the source's Step 1 describes.

@@ -111,6 +111,12 @@ mempenny/
 
 ### 1.3 Hook replacement — `SessionStart` bash → TS `session.created`
 
+> **Correction (v1.7.0):** the `"session.created"`-keyed hook skeleton below
+> never fires — opencode dispatches session events only through the plugin
+> API's generic `event` hook. The shipped plugin subscribes as
+> `event: async ({ event }) => { if (event.type === "session.created") … }`.
+> The plan is kept as written for the historical record.
+
 **Gap:** `hooks/nap-check.sh` (91 lines) runs on Claude Code's `SessionStart` event and emits `hookSpecificOutput.additionalContext` JSON to nudge the model toward `/mempenny:clean --yes`. Opencode has no `SessionStart` event and no bash-hook mechanism — its hooks are JS/TS plugin functions subscribing to events like `session.created`.
 
 **Fix:** Port the script's logic verbatim to a TS plugin. The script is already a clean, defensive, pure function of `CLAUDE_PROJECT_DIR` + config → decision. The TS version:

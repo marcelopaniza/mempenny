@@ -11,6 +11,7 @@
   "license": "MIT",
   "keywords": ["memory", "auto-memory", "context", "hygiene", "triage", "yagni"],
   "skills": "./skills/",
+  "hooks": "./hooks/hooks.json",
   "interface": {
     "displayName": "MemPenny",
     "shortDescription": "Memory hygiene for AI agents",

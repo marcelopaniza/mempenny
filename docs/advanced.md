@@ -39,8 +39,9 @@ As topics grow, MemPenny keeps them from sprawling two different ways:
 
 - **`/mempenny:memory-curate <file>`** — a rules/hazards/reference file that's grown large gets reviewed entry-by-entry (keep / archive / delete), not collapsed wholesale the way `/mempenny:memory-distill` would.
 - **`/mempenny:memory-shard-roll <file>`** — a log file (shipped work, support history, decisions) that's grown large gets its finished years closed out into their own locked, permanent files, so the active file stays current-year-sized.
+- **`/mempenny:memory-auto-split <file>`** — the content-preserving fallback for an over-ceiling file neither of the above may touch (`charter.md`/`pending.md`, or a log file whose bulk sits entirely in the still-open year): the file becomes an index and its items become verbatim pages the index points at. Nothing is distilled or deleted — pure mechanical relocation.
 
-Both trigger automatically from `/mempenny:clean` when a topic file crosses its size ceiling, and both run through the same backup-first, verify-before-write discipline as everything else in MemPenny. Full design spec: [`memory-taxonomy-design.md`](memory-taxonomy-design.md).
+All three trigger automatically from `/mempenny:clean` when a topic file crosses its size ceiling, and all run through the same backup-first, verify-before-write discipline as everything else in MemPenny. Full design spec: [`memory-taxonomy-design.md`](memory-taxonomy-design.md).
 
 ---
 
@@ -60,6 +61,11 @@ When the schedule fires, MemPenny runs `/mempenny:clean --yes` on your next Clau
 
 Cross-platform: Linux + macOS for now. Windows support deferred.
 
+The schedule is shared across hosts: the same config entry drives Claude Code's
+auto-clean, opencode's notification (or opt-in `"mode": "auto"`), and a
+session-start reminder on Gemini and Codex. Details:
+[host-and-model-compat.md](host-and-model-compat.md).
+
 ---
 
 ## Flags on `/mempenny:clean`
@@ -78,6 +84,7 @@ Cross-platform: Linux + macOS for now. Windows support deferred.
 - `/mempenny:memory-distill <file> [--lang <code>]` — one-off distillation of a single file. Interactive: shows the proposal, asks to apply / skip / edit.
 - `/mempenny:memory-curate <file> [--lang <code>] [--yes]` — entry-by-entry reduction for an over-ceiling `traps.md`/`rules.md`/`reference.md`. See [Topic-based organization](#topic-based-organization).
 - `/mempenny:memory-shard-roll <file> [--lang <code>]` — closes finished calendar years out of an over-ceiling `worklog.md`/`support.md`/`decisions.md` into a locked yearly file. See [Topic-based organization](#topic-based-organization).
+- `/mempenny:memory-auto-split <file> [--lang <code>]` — content-preserving index+pages split for an over-ceiling `charter.md`/`pending.md` (or a log file stuck entirely in the open year) that no other command may reduce. No confirmation gate by design — it relocates verbatim, never judges content. See [Topic-based organization](#topic-based-organization).
 
 ## Tell MemPenny what to leave alone
 
@@ -181,7 +188,7 @@ The first three are per-file decisions made on every run. DEDUPE / MERGE / FLAG 
 
 ## How it works
 
-Commands are markdown prompt templates that orchestrate AI subagents. `/mempenny:clean` runs a per-file triage subagent, then a cross-file cluster subagent, then an apply subagent — with a confirm gate before any write. Pass `--yes` to skip the confirm gate; this is what `/mempenny:nap` fires when the schedule runs. `/mempenny:nap` is a small bash hook (`hooks/nap-check.sh`) shipped with the plugin that fires on `SessionStart`, checks your schedule, and if it's time, runs `/mempenny:clean --yes` automatically. `/mempenny:restore` reads the backup index, takes a safety snapshot of the current state, and copies the chosen backup into place. Memory-* commands are the same building blocks exposed individually. Migration, `/mempenny:memory-curate`, and `/mempenny:memory-shard-roll` follow the same shape: a read-only subagent proposes, a separately-spawned apply subagent verifies and writes, and nothing old is removed until that verification passes.
+Commands are markdown prompt templates that orchestrate AI subagents. `/mempenny:clean` runs a per-file triage subagent, then a cross-file cluster subagent, then an apply subagent — with a confirm gate before any write. Pass `--yes` to skip the confirm gate; this is what `/mempenny:nap` fires when the schedule runs. `/mempenny:nap` is a small bash hook (`hooks/nap-check.sh`) shipped with the plugin that fires on `SessionStart`, checks your schedule, and if it's time, runs `/mempenny:clean --yes` automatically. The same script ships to Gemini and Codex — their hook systems adopted Claude Code's shape — where it injects a session-start reminder instead of an auto-run. `/mempenny:restore` reads the backup index, takes a safety snapshot of the current state, and copies the chosen backup into place. Memory-* commands are the same building blocks exposed individually. Migration, `/mempenny:memory-curate`, and `/mempenny:memory-shard-roll` follow the same shape: a read-only subagent proposes, a separately-spawned apply subagent verifies and writes, and nothing old is removed until that verification passes. `/mempenny:memory-auto-split` skips the proposing model entirely — it has no judgment step, so a deterministic script (`hooks/auto-split.sh`) does the moving directly and its built-in conservation check gates the commit.
 
 The plugin is markdown command files, three JSON locale files, a small bash hook, and a plugin manifest. Everything stays on your machine — nothing is sent over the network.
 
@@ -210,7 +217,7 @@ MemPenny also runs on [opencode](https://opencode.ai). The two hosts share the s
 
 - **Commands:** hyphen namespace (`/mempenny-clean`, `/mempenny-nap`, `/mempenny-restore`, `/mempenny-memory-*`). These are *additions*, not renames — the Claude Code colon names stay stable. Each opencode command is a thin adapter that points at the canonical `commands/<name>.md` and adds only host-specific substitutions (env vars, config path, subagent syntax).
 - **Env vars:** opencode reads `MEMPENNY_HOST` / `MEMPENNY_ROOT` / `MEMPENNY_DATA_DIR` (set by the `.opencode/plugins/mempenny-env.ts` shim), never `CLAUDE_*`, so the two hosts cannot collide on one machine.
-- **Nap:** notify-only on opencode. When a scheduled nap is due, the `mempenny-nap.ts` plugin fires a desktop notification pointing at `/mempenny-clean --yes` (opencode's `session.created` has no Claude-style context-injection path). Auto-invoke is reserved for a future release behind `nap.mode: "auto"`.
+- **Nap:** when a scheduled nap is due, the `mempenny-nap.ts` plugin (listening for root `session.created` events) fires a desktop notification pointing at `/mempenny-clean --yes`. Add `"mode": "auto"` to the schedule entry in the config and it starts `/mempenny-clean --yes` in the new session instead, via the SDK's `session.command`; notify stays the default, and a failed auto-invoke (error response or busy session) falls back to the notification. Note that headless `opencode run` one-shot sessions are root sessions too — a due nap notifies (and records its fire) there as well.
 - **Auto-memory:** Claude-Code-specific; the detection/offer subroutine is skipped on opencode.
 - **Install:** `./install/opencode.sh` (clone-and-run, not `curl | bash`); uninstall is `./install/uninstall-opencode.sh`.
 

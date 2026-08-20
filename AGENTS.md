@@ -63,7 +63,14 @@ the locale strings, and the scripted safety checks. This file alone is the
 On a rules-only host, follow the procedure in [`commands/clean.md`](commands/clean.md)
 manually, adapting the tool calls to whatever your host provides (Read / Write /
 Bash / shell). The procedure is the source of truth; adapt the *mechanics*, not
-the *discipline*. In particular, do not drop these:
+the *discipline*.
+
+If a session opens with a note that a **MemPenny nap is due** (Gemini and Codex
+ship a session-start reminder hook), surface it to the user and offer the
+cleanup — consent first. Never start deleting on the reminder alone, and never
+skip the backup step below.
+
+In particular, do not drop these:
 
 - **Backup first.** Copy the whole memory directory to a timestamped backup before
   touching anything. No backup, no write.

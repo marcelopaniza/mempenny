@@ -366,7 +366,7 @@ Use `AskUserQuestion` with question text `nap.prompt_frequency` and exactly thes
 Branching:
 
 - `DAILY` / `WEEKLY` / `ONCE` → set `{FREQUENCY}` accordingly (lowercase string).
-- `CHAT` → briefly explain (at most 2 sentences): daily fires once per calendar day after the scheduled time; weekly fires if at least 7 days have passed since the last fire; once fires exactly one time and stays dormant in the config until you re-schedule or `--cancel`. Answer follow-ups. Re-prompt.
+- `CHAT` → briefly explain (at most 2 sentences): daily fires once per calendar day after the scheduled time; weekly fires if at least 7 days have passed since the last fire; once fires exactly one time — per host that runs the nap hook (Claude Code, opencode, Gemini, Codex each track their own last-fire), staying dormant in the config until you re-schedule or `--cancel`. Answer follow-ups. Re-prompt.
 - No answer → print `nap.aborted` and exit. (M3)
 
 ## Step 9 — Resolve time

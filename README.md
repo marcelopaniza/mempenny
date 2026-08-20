@@ -32,7 +32,7 @@ MemPenny keeps your memory in plain, organized markdown that any AI can read —
 - **Second opinions arrive briefed.** Ask another AI to help mid-project — point it at your memory folder and it knows the goal, the decisions, the gotchas.
 - **Never locked in.** Your memory is markdown on your disk, not a vendor database. Change tools next month; it comes along.
 
-On **Claude Code** and **opencode** this is automatic — same memory directory, same commands, zero setup. Every other supported agent (Codex, Gemini, CodeWhale, Swival, Cursor, Windsurf, and friends) gets the rules-only tier: [`AGENTS.md`](AGENTS.md) carries the same rules, the same safety net, and the memory folder's location, so a second AI can be briefed in one step; hosts that load a copied rules file instead just get pointed at the folder (bullet two).
+On **Claude Code** and **opencode** this is automatic — same memory directory, same commands, zero setup. Every other supported agent (Codex, Gemini, CodeWhale, Swival, Cursor, Windsurf, and friends) gets the rules-only tier: [`AGENTS.md`](AGENTS.md) carries the same rules, the same safety net, and the memory folder's location — and most of these hosts now read `AGENTS.md` natively, so a second AI is briefed the moment it opens the project. The copied rules files carry the same folder pointer for hosts that want one.
 
 ## Before / after
 
@@ -73,33 +73,35 @@ Commands are `/mempenny-clean`, `/mempenny-nap`, `/mempenny-restore`, `/mempenny
 
 | Host | Install |
 |---|---|
-| Codex | `codex plugin marketplace add marcelopaniza/mempenny`, then `/plugins` → install mempenny |
-| Gemini | `gemini extensions install https://github.com/marcelopaniza/mempenny` |
+| Codex | `codex plugin marketplace add marcelopaniza/mempenny`, then `/plugins` → install mempenny, then `/hooks` → trust the nap hook |
+| Gemini | `gemini extensions install https://github.com/marcelopaniza/mempenny` (the nap hook ships with the extension) |
 | Antigravity (`agy`) | `agy plugin install https://github.com/marcelopaniza/mempenny` |
 | Devin | `devin plugins install marcelopaniza/mempenny` |
 | Hermes | `hermes plugins install marcelopaniza/mempenny --enable` |
 | OpenClaw | `clawhub install mempenny` |
 | Swival | `swival skills add --global https://github.com/marcelopaniza/mempenny` |
 | Cursor | copy [`.cursor/rules/mempenny.mdc`](.cursor/rules/mempenny.mdc) into your project |
-| Windsurf | copy [`.windsurf/rules/mempenny.md`](.windsurf/rules/mempenny.md) |
+| Windsurf (Devin Desktop) | copy [`.devin/rules/mempenny.md`](.devin/rules/mempenny.md) (`.windsurf/rules/` is the legacy fallback path) |
 | Cline | copy [`.clinerules/mempenny.md`](.clinerules/mempenny.md) |
 | Kiro | copy [`.kiro/steering/mempenny.md`](.kiro/steering/mempenny.md) into `~/.kiro/steering/` |
 | Copilot | copy [`.github/copilot-instructions.md`](.github/copilot-instructions.md) into your project |
 | CodeWhale | nothing to do — reads `AGENTS.md` automatically |
 
-These get the **rules-only** tier (strategy, guards, write-time discipline); the scheduled nap runs only on Claude Code and opencode (it's a lifecycle hook, and these hosts have no equivalent). Full matrix and rationale: [docs/host-and-model-compat.md](docs/host-and-model-compat.md).
+Cursor, Windsurf/Devin Desktop, Cline, Kiro, Copilot, Devin, and Hermes all read `AGENTS.md` natively now — for them the copied rules file is an optional distilled extra, not a requirement.
+
+These get the **rules-only** tier (strategy, guards, write-time discipline). The scheduled nap reaches further than it used to: full auto-clean on Claude Code, notification (or opt-in auto) on opencode, and a session-start **reminder** on Gemini and Codex — both adopted Claude Code's hook shape, so MemPenny's plugin-shipped hook rides along and nudges a consent-first tidy when a nap is due. Full matrix and rationale: [docs/host-and-model-compat.md](docs/host-and-model-compat.md).
 
 ## Supported hosts & models
 
 | Host | Clean / Restore | Scheduled nap |
 |---|:---:|:---:|
-| Claude Code | ✅ | ✅ |
-| opencode | ✅ | ✅ |
-| Codex / Gemini / Devin | rules-only | — |
-| Cursor / Windsurf / Cline / Kiro / Copilot | rules-only | — |
+| Claude Code | ✅ | ✅ auto |
+| opencode | ✅ | ✅ notify · opt-in auto |
+| Codex / Gemini | rules-only | 🔔 reminder |
+| Cursor / Windsurf (Devin Desktop) / Cline / Kiro / Copilot / Devin | rules-only | — |
 | CodeWhale / Swival / OpenClaw | rules-only | — |
 
-On opencode, a scheduled nap fires a desktop notification pointing at `/mempenny-clean`; auto-invoke is reserved for a future release.
+On opencode, a due nap fires a desktop notification pointing at `/mempenny-clean`; add `"mode": "auto"` to a schedule entry in `~/.claude/mempenny.config.json` and it starts `/mempenny-clean --yes` in the new session instead. On Gemini and Codex the nap is a reminder: a session-start hook injects a note that the nap is due and the model offers the rules-only cleanup — set the schedule from Claude Code or opencode (`/mempenny-nap`), or by hand in the same shared config. On Codex, trust the plugin's hook once via `/hooks`.
 
 MemPenny is tuned on Claude Sonnet/Opus and runs on GLM 4.6+, GPT-5, and Gemini 2.5. **Conservation is non-negotiable on every model** — a scripted check verifies nothing is lost before anything old is deleted. Distillation quality varies by model; see the compat doc for per-model notes.
 

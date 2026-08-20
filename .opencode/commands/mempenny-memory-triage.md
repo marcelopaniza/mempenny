@@ -31,7 +31,7 @@ The env shim sets `MEMPENNY_HOST=opencode`, `MEMPENNY_ROOT`, `MEMPENNY_DATA_DIR`
 The source spawns the triage as `subagent_type: Explore`. On opencode use `subagent_type: "explore"` (read-only), lowercase, passing `description` + `prompt`. Leave `model` unset unless `MEMPENNY_TRIAGE_MODEL` is exported.
 
 ### D. Command namespace
-Sibling commands use the hyphen namespace: `/mempenny-clean`, `/mempenny-nap`, `/mempenny-restore`, `/mempenny-memory-apply`, `/mempenny-memory-distill`, `/mempenny-memory-curate`, `/mempenny-memory-shard-roll`.
+Sibling commands use the hyphen namespace: `/mempenny-clean`, `/mempenny-nap`, `/mempenny-restore`, `/mempenny-memory-apply`, `/mempenny-memory-distill`, `/mempenny-memory-curate`, `/mempenny-memory-shard-roll`, `/mempenny-memory-auto-split`.
 
 ### triage-specific notes
 - `--dir`, `--only`, `--lang` parse from `$ARGUMENTS` per the source Step 1.
